@@ -59,8 +59,14 @@ struct DownloadTableRowView: View {
 
     private var rowAccessibilityLabel: String {
         L10n.t(
-            de: "\(viewModel.fileName), \(viewModel.statusBadge.label), \(viewModel.progressText), Geschwindigkeit \(viewModel.speedText), verbleibend \(viewModel.etaText)",
-            en: "\(viewModel.fileName), \(viewModel.statusBadge.label), \(viewModel.progressText), speed \(viewModel.speedText), remaining \(viewModel.etaText)"
+            de: """
+            \(viewModel.fileName), \(viewModel.statusBadge.label), \(viewModel.progressText), \
+            Geschwindigkeit \(viewModel.speedText), verbleibend \(viewModel.etaText)
+            """,
+            en: """
+            \(viewModel.fileName), \(viewModel.statusBadge.label), \(viewModel.progressText), \
+            speed \(viewModel.speedText), remaining \(viewModel.etaText)
+            """
         )
     }
 

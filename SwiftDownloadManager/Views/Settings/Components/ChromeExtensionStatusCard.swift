@@ -38,8 +38,16 @@ struct ChromeExtensionStatusCard: View {
                 }
 
                 Text(L10n.t(
-                    de: "Installiere die Extension aus dem Ordner unten in Chrome (Entwicklermodus → Entpackte Erweiterung laden). Der lokale Server lauscht auf localhost:\(LocalHTTPServer.port).",
-                    en: "Install the extension from the folder below in Chrome (Developer mode → Load unpacked). The local server listens on localhost:\(LocalHTTPServer.port)."
+                    de: """
+                    Installiere die Extension aus dem Ordner unten in Chrome \
+                    (Entwicklermodus → Entpackte Erweiterung laden). \
+                    Der lokale Server lauscht auf localhost:\(LocalHTTPServer.port).
+                    """,
+                    en: """
+                    Install the extension from the folder below in Chrome \
+                    (Developer mode → Load unpacked). \
+                    The local server listens on localhost:\(LocalHTTPServer.port).
+                    """
                 ))
                 .font(.caption)
                 .foregroundStyle(.secondary)

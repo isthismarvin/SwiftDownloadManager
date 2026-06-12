@@ -6,12 +6,12 @@ on:
   pull_request:
     branches: [main, develop]
 
-# Full app build requires Xcode 26+ (macOS 26 SDK). Unit tests run on any recent macOS runner.
+# Full app build requires macOS 26 SDK (Xcode 26+). Unit tests run on any recent macOS runner.
 
 jobs:
   unit-tests:
     name: Unit Tests
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,8 +24,7 @@ jobs:
 
   build:
     name: Build (macOS 26+)
-    runs-on: macos-15
-    continue-on-error: true
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,7 +40,7 @@ jobs:
 
   lint:
     name: SwiftLint
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -21,8 +21,14 @@ struct DialogBehaviorSection: View {
                     systemImage: "hand.raised",
                     isOn: $appSettings.showConfirmationDialog,
                     help: L10n.t(
-                        de: "Fragt vor dem Start externer Downloads (Extension, Drag & Drop) nach Bestätigung. Domain-Regeln „Immer nachfragen“ gelten immer.",
-                        en: "Asks for confirmation before starting external downloads (extension, drag & drop). Domain rules set to \"Always ask\" always apply."
+                        de: """
+                        Fragt vor dem Start externer Downloads (Extension, Drag & Drop) nach Bestätigung. \
+                        Domain-Regeln „Immer nachfragen“ gelten immer.
+                        """,
+                        en: """
+                        Asks for confirmation before starting external downloads (extension, drag & drop). \
+                        Domain rules set to \"Always ask\" always apply.
+                        """
                     )
                 )
                 Divider().padding(.leading, 28)
