@@ -44,6 +44,12 @@ struct DownloadDialogCoordinator: ViewModifier {
     }
 
     private func presentActivePanelIfNeeded() {
+        DispatchQueue.main.async {
+            presentActivePanelNow()
+        }
+    }
+
+    private func presentActivePanelNow() {
         if let batch = viewModel.pendingConfirmationBatch, batch.count >= 2 {
             showBatchConfirmationPanel(items: batch)
         } else if let item = viewModel.pendingConfirmation {

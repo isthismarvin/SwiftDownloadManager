@@ -51,7 +51,7 @@ struct DownloadConfirmationView: View {
             actionButtons
         }
         .padding(AppTheme.dialogPadding)
-        .frame(minWidth: 480, idealWidth: AppTheme.dialogWidth, maxWidth: 680)
+        .frame(width: 660, height: 520)
         .interactiveDismissDisabled()
         .onAppear { focusedField = .fileName }
         .fileImporter(

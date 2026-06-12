@@ -87,7 +87,7 @@ struct BatchDownloadConfirmationView: View {
             }
         }
         .padding(AppTheme.dialogPadding)
-        .frame(minWidth: 420, idealWidth: AppTheme.dialogWidth, maxWidth: 640)
+        .frame(width: 520, height: 400)
         .interactiveDismissDisabled()
     }
 

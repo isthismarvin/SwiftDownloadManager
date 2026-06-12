@@ -32,7 +32,7 @@ struct DownloadCompletionView: View {
             actionButtons
         }
         .padding(AppTheme.dialogPadding)
-        .frame(minWidth: 480, idealWidth: AppTheme.dialogWidthWide, maxWidth: 720)
+        .frame(width: 620, height: 280)
         .interactiveDismissDisabled()
     }
 

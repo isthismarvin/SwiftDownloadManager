@@ -35,6 +35,7 @@ struct AppBrandHeader: View {
                     .lineLimit(1)
             }
         }
+        .foregroundStyle(.primary)
         .padding(.leading, leadingPadding)
         .padding(.trailing, trailingPadding)
         .accessibilityElement(children: .combine)

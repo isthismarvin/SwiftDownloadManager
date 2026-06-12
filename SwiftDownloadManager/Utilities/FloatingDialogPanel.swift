@@ -7,6 +7,7 @@ enum FloatingDialogPanel {
     private static var panel: NSPanel?
     private static var delegate = PanelDelegate()
     private static var userCloseHandler: (() -> Void)?
+    private static var pendingPresent: DispatchWorkItem?
 
     static var isPresented: Bool {
         panel?.isVisible == true
@@ -16,51 +17,66 @@ enum FloatingDialogPanel {
         title: String,
         @ViewBuilder content: () -> some View,
         onUserClose: (() -> Void)? = nil,
-        size: NSSize? = nil
+        size: NSSize
     ) {
         userCloseHandler = onUserClose
+        let rootView = AnyView(content())
 
-        let hosting = NSHostingController(
-            rootView: AnyView(
-                content()
-                    .background(Color(nsColor: .windowBackgroundColor))
-            )
-        )
-        if let size {
-            hosting.view.frame.size = size
-        } else {
-            hosting.sizingOptions = [.intrinsicContentSize]
+        pendingPresent?.cancel()
+        let work = DispatchWorkItem {
+            presentNow(title: title, content: rootView, size: size)
         }
-
-        if let panel {
-            panel.title = title
-            panel.contentViewController = hosting
-            position(panel)
-            show(panel)
-            return
-        }
-
-        let newPanel = makePanel(title: title, size: size)
-        newPanel.contentViewController = hosting
-        panel = newPanel
-        position(newPanel)
-        show(newPanel)
+        pendingPresent = work
+        DispatchQueue.main.async(execute: work)
     }
 
     static func dismiss() {
+        pendingPresent?.cancel()
+        pendingPresent = nil
         userCloseHandler = nil
         panel?.orderOut(nil)
     }
 
-    private static func makePanel(title: String, size: NSSize?) -> NSPanel {
-        let initialSize = size ?? NSSize(width: 560, height: 480)
+    private static func presentNow(title: String, content: AnyView, size: NSSize) {
+        let hosting = NSHostingController(
+            rootView: content
+                .frame(width: size.width, height: size.height)
+                .background(Color(nsColor: .windowBackgroundColor))
+        )
+        hosting.view.translatesAutoresizingMaskIntoConstraints = true
+        hosting.view.frame = NSRect(origin: .zero, size: size)
+        hosting.view.autoresizingMask = [.width, .height]
+
+        let targetPanel: NSPanel
+        if let panel {
+            targetPanel = panel
+            targetPanel.orderOut(nil)
+        } else {
+            targetPanel = makePanel(title: title, size: size)
+            targetPanel.delegate = delegate
+            panel = targetPanel
+        }
+
+        targetPanel.title = title
+        targetPanel.contentMinSize = size
+        targetPanel.contentMaxSize = size
+        targetPanel.setContentSize(size)
+        targetPanel.contentViewController = hosting
+        position(targetPanel, size: size)
+
+        DispatchQueue.main.async {
+            targetPanel.orderFrontRegardless()
+            targetPanel.makeKey()
+        }
+    }
+
+    private static func makePanel(title: String, size: NSSize) -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: initialSize.width, height: initialSize.height),
+            contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
             backing: .buffered,
-            defer: true
+            defer: false
         )
-        panel.delegate = delegate
         panel.isFloatingPanel = true
         panel.level = .modalPanel
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
@@ -75,22 +91,15 @@ enum FloatingDialogPanel {
         return panel
     }
 
-    private static func show(_ panel: NSPanel) {
-        panel.orderFrontRegardless()
-        panel.makeKeyAndOrderFront(nil)
-    }
-
-    private static func position(_ panel: NSPanel) {
-        panel.layoutIfNeeded()
+    private static func position(_ panel: NSPanel, size: NSSize) {
         guard let screen = NSScreen.screenWithMouse ?? NSScreen.main else { return }
 
-        let size = panel.frame.size
         let visible = screen.visibleFrame
         let origin = NSPoint(
             x: visible.midX - size.width / 2,
             y: visible.midY - size.height / 2
         )
-        panel.setFrameOrigin(origin)
+        panel.setFrame(NSRect(origin: origin, size: size), display: false)
     }
 
     private final class PanelDelegate: NSObject, NSWindowDelegate {
