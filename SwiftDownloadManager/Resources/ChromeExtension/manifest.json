@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SwiftDownloadManager Companion",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Send links and downloads to Swift Download Manager on your Mac.",
   "permissions": ["contextMenus", "notifications", "storage", "downloads", "cookies", "alarms"],
   "host_permissions": ["http://localhost:6789/*", "http://127.0.0.1:6789/*", "http://*/*", "https://*/*"],

@@ -17,7 +17,7 @@ The server binds **only to 127.0.0.1** — it is not reachable from other machin
 
 ### From GitHub Release (recommended)
 
-1. Download [SwiftDownloadManager-ChromeExtension-v2.0.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.0.0.zip)
+1. Download [SwiftDownloadManager-ChromeExtension-v2.0.1.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.0.1.zip)
 2. Unzip the archive
 3. Launch the macOS app
 4. In Chrome: `chrome://extensions` → **Developer mode** → **Load unpacked** → select the unzipped folder
