@@ -29,9 +29,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/main-window.png" alt="Swift Download Manager main window — download list, sidebar filters, and detail inspector with speed chart" width="880">
+  <img src="docs/screenshots/main-window.png" alt="Swift Download Manager main window — download list, sidebar filters, and detail inspector with speed chart (light mode)" width="880">
   <br>
-  <sub>Queue, segmented progress, and per-download speed history — with Chrome extension integration.</sub>
+  <sub>Download list, smart filters, and the three-column inspector with live speed chart.</sub>
 </p>
 
 ---
