@@ -1,0 +1,27 @@
+# SwiftFormat-Konfiguration für SwiftDownloadManager
+# https://github.com/nicklockwood/SwiftFormat
+
+--swiftversion 5.10
+--indent 4
+--tabwidth 4
+--maxwidth 120
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--closingparen balanced
+--commas always
+--semicolons never
+--linebreaks lf
+--header strip
+--importgrouping testable-last
+--trimwhitespace always
+--stripunusedargs closure-only
+--self init-only
+--voidtype void
+--elseposition same-line
+--guardelse auto
+--ifdef no-indent
+--xcodeindentation disabled
+--smarttabs enabled
+--redundanttype inferred
+--organizetypes class,struct,enum,extension,protocol

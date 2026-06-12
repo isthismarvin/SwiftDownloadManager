@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Strip Cursor co-author / made-with trailers from commit messages.
+# Install: cp scripts/hooks/prepare-commit-msg .git/hooks/prepare-commit-msg && chmod +x .git/hooks/prepare-commit-msg
+
+set -euo pipefail
+
+msg_file="${1:?}"
+
+sed -i '' \
+  -e '/^Co-authored-by: Cursor <cursoragent@cursor\.com>$/d' \
+  -e '/^Made-with: Cursor$/d' \
+  "$msg_file"

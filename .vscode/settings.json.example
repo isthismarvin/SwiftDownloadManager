@@ -1,0 +1,13 @@
+{
+    "sweetpad.build.xcodeWorkspacePath": "SwiftDownloadManager.xcodeproj/project.xcworkspace",
+    "sweetpad.build.env": {
+        "DEVELOPER_DIR": "/Applications/Xcode-beta.app/Contents/Developer"
+    },
+    "sweetpad.xcodebuildserver.serverEnv": {
+        "DEVELOPER_DIR": "/Applications/Xcode-beta.app/Contents/Developer"
+    },
+    "[swift]": {
+        "editor.defaultFormatter": "sweetpad.sweetpad",
+        "editor.formatOnSave": true
+    }
+}
