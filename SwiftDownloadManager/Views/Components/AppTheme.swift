@@ -124,13 +124,6 @@ extension View {
 // MARK: - Typography
 
 extension View {
-    /// Icon-only toolbar labels with matching adaptive foreground (light/dark).
-    func appToolbarLabelStyle() -> some View {
-        labelStyle(.iconOnly)
-            .symbolRenderingMode(.monochrome)
-            .foregroundStyle(.primary)
-    }
-
     func appCaptionStyle() -> some View {
         font(.system(size: 12))
             .foregroundStyle(.secondary)

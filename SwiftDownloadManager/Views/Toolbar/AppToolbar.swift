@@ -9,54 +9,50 @@ struct AppToolbar: ToolbarContent {
             AppBrandHeader()
         }
 
-        ToolbarSpacer(.fixed)
-
-        ToolbarItemGroup(placement: .automatic) {
-            Button {
+        ToolbarItem(placement: .automatic) {
+            toolbarButton(
+                systemName: "plus",
+                label: L10n.t(de: "Download hinzufügen", en: "Add Download"),
+                help: L10n.t(de: "Download hinzufügen", en: "Add download")
+            ) {
                 viewModel.isShowingAddSheet = true
-            } label: {
-                Label(L10n.t(de: "Download hinzufügen", en: "Add Download"), systemImage: "plus")
-                    .appToolbarLabelStyle()
             }
-            .help(L10n.t(de: "Download hinzufügen", en: "Add download"))
         }
-
-        ToolbarSpacer(.fixed)
-
-        ToolbarItemGroup(placement: .automatic) {
-            Button {
-                viewModel.startAll()
-            } label: {
-                Label(L10n.t(de: "Alle fortsetzen", en: "Resume All"), systemImage: "play")
-                    .appToolbarLabelStyle()
-            }
-            .help(L10n.t(de: "Alle Downloads fortsetzen", en: "Resume all downloads"))
-
-            Button {
-                viewModel.pauseAll()
-            } label: {
-                Label(L10n.t(de: "Alle pausieren", en: "Pause All"), systemImage: "pause")
-                    .appToolbarLabelStyle()
-            }
-            .help(L10n.t(de: "Alle Downloads pausieren", en: "Pause all downloads"))
-        }
-
-        ToolbarSpacer(.fixed)
 
         ToolbarItem(placement: .automatic) {
-            Button {
-                viewModel.requestDeleteSelected(from: downloads)
-            } label: {
-                Label(L10n.t(de: "Löschen", en: "Delete"), systemImage: "trash")
-                    .appToolbarLabelStyle()
+            toolbarButton(
+                systemName: "play",
+                label: L10n.t(de: "Alle fortsetzen", en: "Resume All"),
+                help: L10n.t(de: "Alle Downloads fortsetzen", en: "Resume all downloads")
+            ) {
+                viewModel.startAll()
             }
-            .help(L10n.t(de: "Ausgewählten Download löschen", en: "Delete selected download"))
+        }
+
+        ToolbarItem(placement: .automatic) {
+            toolbarButton(
+                systemName: "pause",
+                label: L10n.t(de: "Alle pausieren", en: "Pause All"),
+                help: L10n.t(de: "Alle Downloads pausieren", en: "Pause all downloads")
+            ) {
+                viewModel.pauseAll()
+            }
+        }
+
+        ToolbarItem(placement: .automatic) {
+            toolbarButton(
+                systemName: "trash",
+                label: L10n.t(de: "Löschen", en: "Delete"),
+                help: L10n.t(de: "Ausgewählten Download löschen", en: "Delete selected download")
+            ) {
+                viewModel.requestDeleteSelected(from: downloads)
+            }
             .disabled(!viewModel.hasSelection)
         }
 
         ToolbarSpacer(.flexible)
 
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Menu {
                 Button(L10n.t(de: "Einstellungen…", en: "Settings…")) {
                     viewModel.presentSettings()
@@ -68,10 +64,37 @@ struct AppToolbar: ToolbarContent {
                     viewModel.clearCompleted()
                 }
             } label: {
-                Label(L10n.t(de: "Mehr", en: "More"), systemImage: "ellipsis.circle")
-                    .appToolbarLabelStyle()
+                AppToolbarIcon(systemName: "ellipsis.circle")
             }
             .help(L10n.t(de: "Weitere Optionen", en: "More options"))
+            .accessibilityLabel(L10n.t(de: "Mehr", en: "More"))
         }
+    }
+
+    private func toolbarButton(
+        systemName: String,
+        label: String,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            AppToolbarIcon(systemName: systemName)
+        }
+        .help(help)
+        .accessibilityLabel(label)
+    }
+}
+
+/// Square icon bounds keep macOS unified-toolbar glass chips circular.
+private struct AppToolbarIcon: View {
+    let systemName: String
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 13))
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(.primary)
+            .frame(width: 20, height: 20)
+            .contentShape(Rectangle())
     }
 }
