@@ -12,7 +12,10 @@ struct DownloadsSettingsPanel: View {
                             label: L10n.t(de: "Parallele Downloads", en: "Parallel downloads"),
                             value: $appSettings.maxConcurrentDownloads,
                             range: 1...8,
-                            help: L10n.t(de: "Wie viele Downloads gleichzeitig aktiv sein dürfen.", en: "How many downloads may run at the same time.")
+                            help: L10n.t(
+                                de: "Wie viele Downloads gleichzeitig aktiv sein dürfen.",
+                                en: "How many downloads may run at the same time."
+                            )
                         )
                     }
                 }
@@ -26,23 +29,40 @@ struct DownloadsSettingsPanel: View {
                                     value: $appSettings.defaultSegmentsCount,
                                     range: 1...8,
                                     help: L10n.t(
-                                        de: "Fallback, wenn die Dateigröße noch unbekannt ist oder die größenbasierte Regel deaktiviert ist.",
-                                        en: "Fallback when file size is not yet known or size-based rules are disabled."
+                                        de: """
+                                            Fallback, wenn die Dateigröße noch unbekannt ist oder \
+                                            die größenbasierte Regel deaktiviert ist.
+                                            """,
+                                        en: """
+                                            Fallback when file size is not yet known or \
+                                            size-based rules are disabled.
+                                            """
                                     )
                                 )
                                 Divider()
                                 SegmentCountBySizeSettingsSection()
+                                    .disabled(!appSettings.smartFeaturesEnabled)
+                                    .opacity(appSettings.smartFeaturesEnabled ? 1 : 0.55)
                             }
                         }
 
                         SettingsRoundedCard {
                             SettingsToggleRow(
-                                title: L10n.t(de: "Neue Downloads in Warteschlange halten", en: "Hold new downloads in queue"),
+                                title: L10n.t(
+                                    de: "Neue Downloads in Warteschlange halten",
+                                    en: "Hold new downloads in queue"
+                                ),
                                 systemImage: "tray",
                                 isOn: $appSettings.holdNewDownloadsInQueue,
                                 help: L10n.t(
-                                    de: "Neue Downloads werden angelegt, starten aber nicht automatisch — du startest sie manuell.",
-                                    en: "New downloads are created but do not start automatically — you start them manually."
+                                    de: """
+                                        Neue Downloads werden angelegt, starten aber nicht \
+                                        automatisch — du startest sie manuell.
+                                        """,
+                                    en: """
+                                        New downloads are created but do not start \
+                                        automatically — you start them manually.
+                                        """
                                 )
                             )
                         }

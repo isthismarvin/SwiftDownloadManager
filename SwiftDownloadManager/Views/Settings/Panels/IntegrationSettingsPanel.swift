@@ -22,8 +22,14 @@ struct IntegrationSettingsPanel: View {
                                 en: "Default in confirmation dialog"
                             ),
                             help: L10n.t(
-                                de: "Sendet Browser-Session (Cookies, Referrer) mit — wichtig für geschützte Downloads von der Extension.",
-                                en: "Sends browser session (cookies, referrer) — important for protected downloads from the extension."
+                                de: """
+                                    Sendet Browser-Session (Cookies, Referrer) mit — \
+                                    wichtig für geschützte Downloads von der Extension.
+                                    """,
+                                en: """
+                                    Sends browser session (cookies, referrer) — \
+                                    important for protected downloads from the extension.
+                                    """
                             )
                         )
                     }
@@ -32,8 +38,12 @@ struct IntegrationSettingsPanel: View {
                 SettingsPanelSection(
                     title: L10n.t(de: "Domain-Regeln", en: "Domain Rules"),
                     footer: L10n.t(
-                        de: "Wildcard: *.example.com — längere Muster haben Vorrang vor kürzeren.",
-                        en: "Wildcard: *.example.com — longer patterns take precedence over shorter ones."
+                        de: """
+                            Wildcard: *.example.com — längere Muster haben Vorrang vor kürzeren.
+                            """,
+                        en: """
+                            Wildcard: *.example.com — longer patterns take precedence over shorter ones.
+                            """
                     )
                 ) {
                     DomainRulesSettingsSection(rules: $domainRules)
@@ -42,14 +52,22 @@ struct IntegrationSettingsPanel: View {
                 SettingsPanelSection(
                     title: L10n.t(de: "Gelernte Regeln", en: "Learned Rules"),
                     footer: L10n.t(
-                        de: "Automatisch gespeicherte Vorschläge aus abgeschlossenen Downloads. Erfordert „Intelligente Funktionen“ unter Intelligenz.",
-                        en: "Automatically saved suggestions from completed downloads. Requires \"Enable smart features\" under Intelligence."
+                        de: """
+                            Automatisch gespeicherte Vorschläge aus abgeschlossenen Downloads. \
+                            Erfordert „Intelligente Funktionen“ unter Intelligenz.
+                            """,
+                        en: """
+                            Automatically saved suggestions from completed downloads. \
+                            Requires \"Enable smart features\" under Intelligence.
+                            """
                     )
                 ) {
                     SettingsRoundedCard {
                         LearnedRulesSettingsSection()
                     }
                 }
+                .disabled(!appSettings.smartFeaturesEnabled)
+                .opacity(appSettings.smartFeaturesEnabled ? 1 : 0.55)
             }
             .settingsPanelStack()
             .onAppear(perform: reloadRules)

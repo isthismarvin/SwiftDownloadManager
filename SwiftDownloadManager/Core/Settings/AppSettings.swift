@@ -413,7 +413,7 @@ final class AppSettings {
 
     func recommendedSegmentsCount(for bytesTotal: Int64, fallback: Int? = nil) -> Int {
         let fallbackCount = fallback ?? defaultSegmentsCount
-        guard sizeBasedSegmentCountEnabled else { return fallbackCount }
+        guard smartFeaturesEnabled, sizeBasedSegmentCountEnabled else { return fallbackCount }
         return SegmentCountPolicy.connections(
             for: bytesTotal,
             tiers: segmentCountTiers,
@@ -498,7 +498,9 @@ final class AppSettings {
             rawValue: defaults.string(forKey: Key.conflictPolicy) ?? ""
         ) ?? .rename
         useCustomSpeedLimit = defaults.bool(forKey: Key.useCustomSpeedLimit)
-        customSpeedLimitBytesPerSecond = defaults.object(forKey: Key.customSpeedLimitBytesPerSecond) as? Int64 ?? 3_000_000
+        customSpeedLimitBytesPerSecond = defaults.object(
+            forKey: Key.customSpeedLimitBytesPerSecond
+        ) as? Int64 ?? 3_000_000
         defaultStartWhenOnWiFi = defaults.bool(forKey: Key.defaultStartWhenOnWiFi)
         let timeout = defaults.integer(forKey: Key.probeTimeoutSeconds)
         probeTimeoutSeconds = timeout == 0 ? 30 : timeout

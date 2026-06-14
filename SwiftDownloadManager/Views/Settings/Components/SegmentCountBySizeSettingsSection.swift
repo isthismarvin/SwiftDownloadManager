@@ -10,8 +10,14 @@ struct SegmentCountBySizeSettingsSection: View {
                 systemImage: "square.split.2x2",
                 isOn: $appSettings.sizeBasedSegmentCountEnabled,
                 help: L10n.t(
-                    de: "Legt die Anzahl paralleler Verbindungen anhand der Dateigröße fest. SegmentPlanner begrenzt zusätzlich nach Mindestsegmentgröße.",
-                    en: "Sets the number of parallel connections based on file size. SegmentPlanner also caps by minimum segment size."
+                    de: """
+                        Legt die Anzahl paralleler Verbindungen anhand der Dateigröße fest. \
+                        SegmentPlanner begrenzt zusätzlich nach Mindestsegmentgröße.
+                        """,
+                    en: """
+                        Sets the number of parallel connections based on file size. \
+                        SegmentPlanner also caps by minimum segment size.
+                        """
                 )
             )
 
