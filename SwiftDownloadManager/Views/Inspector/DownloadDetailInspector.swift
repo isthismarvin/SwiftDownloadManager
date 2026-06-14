@@ -5,8 +5,6 @@ struct DownloadDetailInspector: View {
     @Binding var isCollapsed: Bool
     @Binding var expandedHeight: CGFloat
 
-    @State private var resizeDragStartHeight: CGFloat?
-
     private var viewModel: DownloadDetailViewModel {
         DownloadDetailViewModel(item: item)
     }
@@ -658,37 +656,9 @@ struct DownloadDetailInspector: View {
         }
     }
 
+    @ViewBuilder
     private var inspectorResizeHandle: some View {
-        VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(Color.primary.opacity(0.18))
-                .frame(width: 36, height: 4)
-                .padding(.top, 6)
-                .padding(.bottom, 4)
-                .frame(width: 120, height: 16)
-                .contentShape(Rectangle())
-                .onHover { hovering in
-                    if hovering { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
-                }
-                .gesture(
-                    DragGesture(minimumDistance: 1)
-                        .onChanged { value in
-                            if resizeDragStartHeight == nil {
-                                resizeDragStartHeight = expandedHeight
-                            }
-                            let proposed = (resizeDragStartHeight ?? expandedHeight) - value.translation.height
-                            expandedHeight = min(
-                                max(proposed, AppTheme.inspectorExpandedHeightMin),
-                                AppTheme.inspectorExpandedHeightMax
-                            )
-                        }
-                        .onEnded { _ in
-                            resizeDragStartHeight = nil
-                        }
-                )
-                .help(L10n.t(de: "Inspector-Höhe anpassen", en: "Resize inspector"))
-        }
-        .frame(maxWidth: .infinity)
+        InspectorResizeHandle(expandedHeight: $expandedHeight)
     }
 
     private var collapseButton: some View {
@@ -801,6 +771,44 @@ struct DownloadDetailInspector: View {
                     .font(.system(size: 9))
             }
         }
+    }
+}
+
+private struct InspectorResizeHandle: View {
+    @Binding var expandedHeight: CGFloat
+    @State private var resizeDragStartHeight: CGFloat?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(Color.primary.opacity(0.18))
+                .frame(width: 36, height: 4)
+                .padding(.top, 6)
+                .padding(.bottom, 4)
+                .frame(width: 120, height: 16)
+                .contentShape(Rectangle())
+                .onHover { hovering in
+                    if hovering { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 1)
+                        .onChanged { value in
+                            if resizeDragStartHeight == nil {
+                                resizeDragStartHeight = expandedHeight
+                            }
+                            let proposed = (resizeDragStartHeight ?? expandedHeight) - value.translation.height
+                            expandedHeight = min(
+                                max(proposed, AppTheme.inspectorExpandedHeightMin),
+                                AppTheme.inspectorExpandedHeightMax
+                            )
+                        }
+                        .onEnded { _ in
+                            resizeDragStartHeight = nil
+                        }
+                )
+                .help(L10n.t(de: "Inspector-Höhe anpassen", en: "Resize inspector"))
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

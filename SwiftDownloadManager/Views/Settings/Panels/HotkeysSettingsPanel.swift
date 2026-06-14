@@ -13,7 +13,10 @@ struct HotkeysSettingsPanel: View {
                 SettingsPanelSection(
                     title: L10n.t(de: "Menü-Shortcuts", en: "Menu Shortcuts"),
                     footer: L10n.t(
-                        de: "Klicke auf ein Tastenkürzel und drücke die neue Kombination. Esc bricht die Aufnahme ab. ⌘ ist für die meisten Aktionen erforderlich.",
+                        de: """
+                        Klicke auf ein Tastenkürzel und drücke die neue Kombination. \
+                        Esc bricht die Aufnahme ab. ⌘ ist für die meisten Aktionen erforderlich.
+                        """,
                         en: "Click a shortcut and press the new key combination. Esc cancels recording. ⌘ is required for most actions."
                     )
                 ) {
