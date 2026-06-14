@@ -50,6 +50,8 @@ struct IntegrationSettingsPanel: View {
                         LearnedRulesSettingsSection()
                     }
                 }
+                .disabled(!appSettings.smartFeaturesEnabled)
+                .opacity(appSettings.smartFeaturesEnabled ? 1 : 0.55)
             }
             .settingsPanelStack()
             .onAppear(perform: reloadRules)

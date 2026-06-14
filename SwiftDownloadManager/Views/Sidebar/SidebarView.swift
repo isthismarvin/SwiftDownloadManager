@@ -18,7 +18,7 @@ struct SidebarView: View {
                 }
             }
 
-            if appSettings.showSmartSidebarFilters {
+            if appSettings.showSmartSidebarFilters && appSettings.smartFeaturesEnabled {
                 Section(L10n.t(de: "Smart Filter", en: "Smart Filters")) {
                     ForEach(SidebarSelection.smartFilters) { item in
                         sidebarRow(item)

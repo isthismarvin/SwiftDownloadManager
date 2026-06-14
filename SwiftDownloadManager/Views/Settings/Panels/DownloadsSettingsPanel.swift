@@ -32,6 +32,8 @@ struct DownloadsSettingsPanel: View {
                                 )
                                 Divider()
                                 SegmentCountBySizeSettingsSection()
+                                    .disabled(!appSettings.smartFeaturesEnabled)
+                                    .opacity(appSettings.smartFeaturesEnabled ? 1 : 0.55)
                             }
                         }
 

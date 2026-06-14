@@ -413,7 +413,7 @@ final class AppSettings {
 
     func recommendedSegmentsCount(for bytesTotal: Int64, fallback: Int? = nil) -> Int {
         let fallbackCount = fallback ?? defaultSegmentsCount
-        guard sizeBasedSegmentCountEnabled else { return fallbackCount }
+        guard smartFeaturesEnabled, sizeBasedSegmentCountEnabled else { return fallbackCount }
         return SegmentCountPolicy.connections(
             for: bytesTotal,
             tiers: segmentCountTiers,
