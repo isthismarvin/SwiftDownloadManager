@@ -76,3 +76,6 @@ fastlane/test_output
 *.pem
 *.p12
 secrets.json
+
+# AI agent reference files (local documentation)
+UI_REFERENCE.md

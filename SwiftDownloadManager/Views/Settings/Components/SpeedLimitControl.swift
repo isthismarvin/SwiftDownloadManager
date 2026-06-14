@@ -108,7 +108,7 @@ struct SpeedLimitControl: View {
                     ))
                 } else {
                     HStack(spacing: 6) {
-                        Image(systemName: "hare.fill")
+                        Image(systemName: "gauge.with.dots.needle.100percent")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(L10n.t(de: "Keine Geschwindigkeitsbegrenzung", en: "No speed limit"))

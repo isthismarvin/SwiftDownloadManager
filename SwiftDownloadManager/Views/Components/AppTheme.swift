@@ -5,7 +5,11 @@ enum AppTheme {
     static let smallCornerRadius: CGFloat = 6
     static let separatorOpacity: Double = 0.08
     static let primarySubtleOpacity: Double = 0.03
-    static let inspectorExpandedHeight: CGFloat = 320
+    static let hoverBackgroundOpacity: Double = 0.045
+    static let selectedRowBackgroundOpacity: Double = 0.1
+    static let inspectorExpandedHeightDefault: CGFloat = 320
+    static let inspectorExpandedHeightMin: CGFloat = 200
+    static let inspectorExpandedHeightMax: CGFloat = 480
     static let inspectorCollapsedHeight: CGFloat = 40
     static let inspectorSpring = Animation.spring(response: 0.38, dampingFraction: 0.84)
     static let rowHeight: CGFloat = 60
@@ -31,15 +35,19 @@ enum AppTheme {
     }
 
     static var hoverBackground: Color {
-        Color.primary.opacity(primarySubtleOpacity)
+        Color.primary.opacity(hoverBackgroundOpacity)
     }
 
     static var selectedRowBackground: Color {
-        Color.accentColor.opacity(0.1)
+        Color.accentColor.opacity(selectedRowBackgroundOpacity)
     }
 
     static var tableHeaderBackground: Color {
-        Color.primary.opacity(0.035)
+        Color.primary.opacity(0.06)
+    }
+
+    static var tableHeaderBorder: Color {
+        Color.primary.opacity(0.1)
     }
 }
 

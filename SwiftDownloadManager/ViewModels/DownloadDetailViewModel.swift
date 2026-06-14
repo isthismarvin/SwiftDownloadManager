@@ -185,6 +185,26 @@ struct DownloadDetailViewModel {
     func openFile() { row.openFile() }
     func copyURL() { row.copyURL() }
 
+    var canRevealSaveLocation: Bool {
+        canRevealInFinder
+            || item.saveDirectoryPath != nil
+            || AppSettings.shared.resolvedDefaultSaveDirectory() != nil
+    }
+
+    func revealSaveLocation() {
+        if canRevealInFinder {
+            revealInFinder()
+            return
+        }
+        if let path = item.saveDirectoryPath {
+            NSWorkspace.shared.open(URL(fileURLWithPath: path, isDirectory: true))
+            return
+        }
+        if let url = AppSettings.shared.resolvedDefaultSaveDirectory() {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     func segmentProgress(_ segment: DownloadSegment) -> Double {
         segment.displayProgress(bytesTotal: item.bytesTotal, downloadCompleted: status == .completed)
     }

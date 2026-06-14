@@ -44,6 +44,7 @@ final class AppSettings {
         static let historyRetentionDays = "historyRetentionDays"
         static let appLanguage = "appLanguage"
         static let inspectorCollapsed = "inspectorCollapsed"
+        static let inspectorExpandedHeight = "inspectorExpandedHeight"
         static let downloadSortOrder = "downloadSortOrder"
         static let downloadSortAscending = "downloadSortAscending"
         static let tableColumnOrder = "tableColumnOrder"
@@ -188,6 +189,24 @@ final class AppSettings {
 
     var inspectorCollapsed: Bool {
         didSet { UserDefaults.standard.set(inspectorCollapsed, forKey: Key.inspectorCollapsed) }
+    }
+
+    var inspectorExpandedHeight: CGFloat = {
+        let stored = UserDefaults.standard.double(forKey: Key.inspectorExpandedHeight)
+        guard stored > 0 else { return AppTheme.inspectorExpandedHeightDefault }
+        return min(
+            max(CGFloat(stored), AppTheme.inspectorExpandedHeightMin),
+            AppTheme.inspectorExpandedHeightMax
+        )
+    }() {
+        didSet {
+            let clamped = Self.clampInspectorHeight(inspectorExpandedHeight)
+            if clamped != inspectorExpandedHeight {
+                inspectorExpandedHeight = clamped
+                return
+            }
+            UserDefaults.standard.set(Double(inspectorExpandedHeight), forKey: Key.inspectorExpandedHeight)
+        }
     }
 
     var sortOrder: DownloadSortOrder = {
@@ -494,6 +513,12 @@ final class AppSettings {
         historyRetentionDays = retention == 0 ? 30 : retention
         appLanguage = AppLanguage(rawValue: defaults.string(forKey: Key.appLanguage) ?? "") ?? .system
         inspectorCollapsed = defaults.bool(forKey: Key.inspectorCollapsed)
+        let storedInspectorHeight = defaults.double(forKey: Key.inspectorExpandedHeight)
+        inspectorExpandedHeight = Self.clampInspectorHeight(
+            storedInspectorHeight > 0
+                ? CGFloat(storedInspectorHeight)
+                : AppTheme.inspectorExpandedHeightDefault
+        )
         let concurrent = defaults.integer(forKey: Key.maxConcurrentDownloads)
         maxConcurrentDownloads = concurrent == 0 ? 2 : concurrent
         globalSpeedLimitBytesPerSecond = defaults.value(forKey: Key.globalSpeedLimitBytesPerSecond) as? Int64 ?? 0
@@ -534,6 +559,10 @@ final class AppSettings {
         guard !useCustomSpeedLimit,
               !Self.speedLimitPresets.contains(globalSpeedLimitBytesPerSecond) else { return }
         globalSpeedLimitBytesPerSecond = 0
+    }
+
+    private static func clampInspectorHeight(_ value: CGFloat) -> CGFloat {
+        min(max(value, AppTheme.inspectorExpandedHeightMin), AppTheme.inspectorExpandedHeightMax)
     }
 
     var defaultSaveDirectoryPath: String {
@@ -619,6 +648,7 @@ final class AppSettings {
             Key.historyRetentionDays,
             Key.appLanguage,
             Key.inspectorCollapsed,
+            Key.inspectorExpandedHeight,
             Key.downloadSortOrder,
             Key.maxConcurrentDownloads,
             Key.globalSpeedLimitBytesPerSecond,
@@ -646,6 +676,7 @@ final class AppSettings {
             "domainRules",
             "intelligence.hostPreferences",
             "intelligence.extensionRules",
+            "appShortcutOverrides",
         ]
         for key in keysToReset {
             UserDefaults.standard.removeObject(forKey: key)
@@ -675,6 +706,7 @@ final class AppSettings {
         historyRetentionDays = 30
         appLanguage = .system
         inspectorCollapsed = false
+        inspectorExpandedHeight = AppTheme.inspectorExpandedHeightDefault
         sortOrder = .dateAdded
         sortAscending = DownloadSortOrder.dateAdded.prefersAscending
         tableColumnOrder = DownloadTableColumn.defaultDataColumnOrder.map(\.rawValue)
@@ -703,6 +735,7 @@ final class AppSettings {
         queueBacklogThreshold = 5
         largeFileThresholdGB = 1
         showSmartSidebarFilters = true
+        AppShortcutSettings.shared.resetAll()
         DownloadLearningStore.clearAll()
         DownloadManager.shared.applySegmentRetries(3)
     }

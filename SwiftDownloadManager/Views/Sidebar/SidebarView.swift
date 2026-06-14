@@ -51,9 +51,6 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
-        .safeAreaInset(edge: .bottom) {
-            SidebarBottomBar(viewModel: viewModel)
-        }
         .alert(L10n.t(de: "Neuer Ordner", en: "New Folder"), isPresented: $viewModel.isShowingNewFolderAlert) {
             TextField(L10n.t(de: "Ordnername", en: "Folder name"), text: $viewModel.newFolderName)
             Button(L10n.t(de: "Abbrechen", en: "Cancel"), role: .cancel) {
@@ -96,13 +93,8 @@ struct SidebarView: View {
 
             Spacer()
 
-            if let count = badgeCounts.count(for: item) {
-                Text("\(count)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.12), in: Capsule())
+            if let count = badgeCounts.count(for: item), count > 0 {
+                SidebarCountBadge(count: count)
             }
         }
         .tag(item)
@@ -123,13 +115,8 @@ struct SidebarView: View {
 
             Spacer()
 
-            if let count = badgeCounts.count(for: .customFolder(folder.id)) {
-                Text("\(count)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.12), in: Capsule())
+            if let count = badgeCounts.count(for: .customFolder(folder.id)), count > 0 {
+                SidebarCountBadge(count: count)
             }
         }
         .tag(SidebarSelection.customFolder(folder.id))
@@ -143,5 +130,18 @@ struct SidebarView: View {
                 viewModel.deleteFolder(folder)
             }
         }
+    }
+}
+
+private struct SidebarCountBadge: View {
+    let count: Int
+
+    var body: some View {
+        Text("\(count)")
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .appGlassChip()
     }
 }

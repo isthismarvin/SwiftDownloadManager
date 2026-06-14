@@ -67,6 +67,7 @@ final class DownloadManager {
     let engine = DownloadEngine()
     let sessions = DownloadSessionRegistry()
     var metricsTrackers: [UUID: DownloadMetricsTracker] = [:]
+    private(set) var aggregateDisplaySpeed: Double = 0
     var pendingSave = false
     var saveDebounceTask: Task<Void, Never>?
     var metadataProbeTasks: [UUID: Task<Void, Never>] = [:]
@@ -118,6 +119,7 @@ final class DownloadManager {
             logger.info("DownloadManager configured")
         }
 
+        refreshAggregateDisplaySpeed()
         processQueue()
     }
 
@@ -179,5 +181,13 @@ final class DownloadManager {
 
     func effectiveConflictPolicy(for downloadID: UUID) -> DestinationConflictPolicy {
         conflictPolicyOverrides[downloadID] ?? AppSettings.shared.conflictPolicy
+    }
+
+    func refreshAggregateDisplaySpeed() {
+        aggregateDisplaySpeed = fetchAllItemsForUI()
+            .filter { $0.status == .downloading }
+            .reduce(0.0) { partial, item in
+                partial + metricsTracker(for: item.id).displaySpeed
+            }
     }
 }

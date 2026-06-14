@@ -77,6 +77,8 @@ struct SettingsView: View {
             IntelligenceSettingsPanel()
         case .notifications:
             NotificationsSettingsPanel()
+        case .hotkeys:
+            HotkeysSettingsPanel()
         case .advanced:
             AdvancedSettingsPanel()
         case .about:

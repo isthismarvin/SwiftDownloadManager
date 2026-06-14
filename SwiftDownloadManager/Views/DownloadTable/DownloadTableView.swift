@@ -98,6 +98,11 @@ struct DownloadTableView: View {
         .textCase(.none)
         .frame(height: 30)
         .background(AppTheme.tableHeaderBackground)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(AppTheme.tableHeaderBorder)
+                .frame(height: 1)
+        }
     }
 
     private func sortableHeader(

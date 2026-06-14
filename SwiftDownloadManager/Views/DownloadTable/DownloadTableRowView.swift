@@ -28,6 +28,7 @@ struct DownloadTableRowView: View {
             }
         }
         .frame(height: AppTheme.rowHeight)
+        .background(rowBackground)
         .overlay(alignment: .leading) {
             if isSelected {
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
@@ -55,6 +56,18 @@ struct DownloadTableRowView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    private var rowBackground: some View {
+        Group {
+            if isSelected {
+                AppTheme.selectedRowBackground
+            } else if isHovered {
+                AppTheme.hoverBackground
+            } else {
+                Color.clear
+            }
+        }
     }
 
     private var rowAccessibilityLabel: String {

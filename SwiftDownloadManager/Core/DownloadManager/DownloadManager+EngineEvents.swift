@@ -141,6 +141,7 @@ extension DownloadManager {
             saveNow()
         }
 
+        refreshAggregateDisplaySpeed()
         scheduleSave()
     }
 

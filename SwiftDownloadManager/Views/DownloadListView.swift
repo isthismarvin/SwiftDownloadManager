@@ -48,7 +48,8 @@ struct DownloadListView: View {
                     if let item = inspectorDownload {
                         DownloadDetailInspector(
                             item: item,
-                            isCollapsed: $appSettings.inspectorCollapsed
+                            isCollapsed: $appSettings.inspectorCollapsed,
+                            expandedHeight: $appSettings.inspectorExpandedHeight
                         )
                         .id(item.id)
                         .frame(maxWidth: .infinity)
@@ -69,6 +70,7 @@ struct DownloadListView: View {
             .searchable(
                 text: $viewModel.searchText,
                 isPresented: $viewModel.isSearchPresented,
+                placement: .toolbar,
                 prompt: L10n.t(de: "Downloads suchen", en: "Search downloads")
             )
         }

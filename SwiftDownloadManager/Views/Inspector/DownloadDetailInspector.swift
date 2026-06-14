@@ -3,6 +3,9 @@ import SwiftUI
 struct DownloadDetailInspector: View {
     let item: DownloadItem
     @Binding var isCollapsed: Bool
+    @Binding var expandedHeight: CGFloat
+
+    @State private var resizeDragStartHeight: CGFloat?
 
     private var viewModel: DownloadDetailViewModel {
         DownloadDetailViewModel(item: item)
@@ -12,12 +15,18 @@ struct DownloadDetailInspector: View {
         inspectorContent
             .frame(maxWidth: .infinity)
             .frame(
-                height: isCollapsed ? AppTheme.inspectorCollapsedHeight : AppTheme.inspectorExpandedHeight,
+                height: isCollapsed ? AppTheme.inspectorCollapsedHeight : expandedHeight,
                 alignment: .top
             )
+            .overlay(alignment: .top) {
+                if !isCollapsed {
+                    inspectorResizeHandle
+                }
+            }
             .clipShape(inspectorShape)
             .glassEffect(.regular, in: inspectorShape)
             .animation(AppTheme.inspectorSpring, value: isCollapsed)
+            .animation(AppTheme.inspectorSpring, value: expandedHeight)
     }
 
     private var inspectorShape: RoundedRectangle {
@@ -258,7 +267,7 @@ struct DownloadDetailInspector: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 6) {
                 overviewRow(
                     icon: "arrow.down.circle",
                     label: viewModel.status == .completed
@@ -271,7 +280,9 @@ struct DownloadDetailInspector: View {
                 overviewRow(
                     icon: "folder",
                     label: L10n.t(de: "Speicherort", en: "Save to"),
-                    value: viewModel.savePathText
+                    value: viewModel.savePathText,
+                    action: viewModel.canRevealSaveLocation ? { viewModel.revealSaveLocation() } : nil,
+                    actionHelp: L10n.t(de: "Im Finder anzeigen", en: "Reveal in Finder")
                 )
                 urlOverviewRow
                 overviewRow(
@@ -311,12 +322,12 @@ struct DownloadDetailInspector: View {
                 .frame(width: 12)
 
             Text("URL")
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .frame(width: 52, alignment: .leading)
 
             Text(viewModel.urlText)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -381,13 +392,12 @@ struct DownloadDetailInspector: View {
                     icon: "bolt.fill",
                     label: L10n.t(de: "Spitzengeschw.", en: "Peak Speed"),
                     value: viewModel.hasSpeedHistory ? viewModel.peakSpeedText : "—",
-                    tint: .yellow
+                    tint: .orange
                 ),
                 MetricRowData(
                     icon: "clock",
                     label: L10n.t(de: "Verbleibend", en: "Remaining"),
-                    value: viewModel.etaText,
-                    tint: .orange
+                    value: viewModel.etaText
                 ),
                 MetricRowData(
                     icon: "network",
@@ -417,7 +427,7 @@ struct DownloadDetailInspector: View {
                     icon: "bolt.fill",
                     label: L10n.t(de: "Spitzengeschw.", en: "Peak Speed"),
                     value: viewModel.peakSpeedText,
-                    tint: .yellow
+                    tint: .orange
                 ),
                 MetricRowData(
                     icon: "calendar",
@@ -447,7 +457,7 @@ struct DownloadDetailInspector: View {
                     icon: "bolt.fill",
                     label: L10n.t(de: "Spitzengeschw.", en: "Peak Speed"),
                     value: viewModel.hasSpeedHistory ? viewModel.peakSpeedText : "—",
-                    tint: .yellow
+                    tint: .orange
                 ),
                 MetricRowData(
                     icon: "network",
@@ -506,7 +516,8 @@ struct DownloadDetailInspector: View {
                 SpeedChartView(
                     samples: viewModel.speedSamples,
                     caption: viewModel.status == .downloading ? viewModel.speedText : "",
-                    isHistorical: viewModel.status != .downloading
+                    isHistorical: viewModel.status != .downloading,
+                    showsHeader: false
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -583,24 +594,45 @@ struct DownloadDetailInspector: View {
             .textCase(.uppercase)
     }
 
-    private func overviewRow(icon: String, label: String, value: String) -> some View {
+    @ViewBuilder
+    private func overviewRow(
+        icon: String,
+        label: String,
+        value: String,
+        action: (() -> Void)? = nil,
+        actionHelp: String? = nil
+    ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.tertiary)
                 .frame(width: 12)
 
             Text(label)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .frame(width: 52, alignment: .leading)
 
-            Text(value)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if let action {
+                Button(action: action) {
+                    Text(value)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .underline(pattern: .dot, color: .secondary.opacity(0.5))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .help(actionHelp ?? label)
+            } else {
+                Text(value)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
@@ -612,18 +644,51 @@ struct DownloadDetailInspector: View {
                 .frame(width: 12)
 
             Text(label)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
             Spacer(minLength: 0)
 
             Text(value)
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .font(.system(size: 12, weight: .semibold).monospacedDigit())
                 .foregroundStyle(tint == .secondary ? .primary : tint)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
+    }
+
+    private var inspectorResizeHandle: some View {
+        VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(Color.primary.opacity(0.18))
+                .frame(width: 36, height: 4)
+                .padding(.top, 6)
+                .padding(.bottom, 4)
+                .frame(width: 120, height: 16)
+                .contentShape(Rectangle())
+                .onHover { hovering in
+                    if hovering { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 1)
+                        .onChanged { value in
+                            if resizeDragStartHeight == nil {
+                                resizeDragStartHeight = expandedHeight
+                            }
+                            let proposed = (resizeDragStartHeight ?? expandedHeight) - value.translation.height
+                            expandedHeight = min(
+                                max(proposed, AppTheme.inspectorExpandedHeightMin),
+                                AppTheme.inspectorExpandedHeightMax
+                            )
+                        }
+                        .onEnded { _ in
+                            resizeDragStartHeight = nil
+                        }
+                )
+                .help(L10n.t(de: "Inspector-Höhe anpassen", en: "Resize inspector"))
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var collapseButton: some View {

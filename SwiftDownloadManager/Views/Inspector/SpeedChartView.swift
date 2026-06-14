@@ -5,6 +5,7 @@ struct SpeedChartView: View {
     let samples: [SpeedSample]
     let caption: String
     var isHistorical: Bool = false
+    var showsHeader: Bool = true
 
     private struct ChartPoint: Identifiable {
         let id: Int
@@ -38,15 +39,25 @@ struct SpeedChartView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(L10n.t(de: "Geschwindigkeit", en: "Speed"))
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                Text(caption)
-                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(chartTint)
-                    .lineLimit(1)
+            if showsHeader {
+                HStack {
+                    Text(L10n.t(de: "Geschwindigkeit", en: "Speed"))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    Text(caption)
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(chartTint)
+                        .lineLimit(1)
+                }
+            } else if !caption.isEmpty {
+                HStack {
+                    Spacer(minLength: 0)
+                    Text(caption)
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(chartTint)
+                        .lineLimit(1)
+                }
             }
 
             Chart(chartPoints) { point in
@@ -100,10 +111,10 @@ struct SpeedChartView: View {
         }
         .padding(10)
         .background {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
                 .fill(Color.primary.opacity(0.03))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
                         .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
                 }
         }

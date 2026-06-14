@@ -7,6 +7,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     case integration
     case intelligence
     case notifications
+    case hotkeys
     case advanced
     case about
 
@@ -20,6 +21,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .integration: return L10n.t(de: "Integration", en: "Integration")
         case .intelligence: return L10n.t(de: "Intelligenz", en: "Intelligence")
         case .notifications: return L10n.t(de: "Benachrichtigungen", en: "Notifications")
+        case .hotkeys: return L10n.t(de: "Tastenkürzel", en: "Hotkeys")
         case .advanced: return L10n.t(de: "Erweitert", en: "Advanced")
         case .about: return L10n.t(de: "Über", en: "About")
         }
@@ -33,6 +35,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .integration: return "puzzlepiece.extension"
         case .intelligence: return "sparkles"
         case .notifications: return "bell"
+        case .hotkeys: return "keyboard"
         case .advanced: return "wrench.and.screwdriver"
         case .about: return "info.circle"
         }
@@ -63,6 +66,11 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
             return L10n.t(
                 de: "Systemhinweise, Hänger, Warteschlange und Dock-Badge.",
                 en: "System notifications, stalls, queue backlog, and Dock badge."
+            )
+        case .hotkeys:
+            return L10n.t(
+                de: "Menü-Tastenkürzel anpassen und Konflikte vermeiden.",
+                en: "Customize menu keyboard shortcuts and avoid conflicts."
             )
         case .advanced: return L10n.t(de: "Verlauf, Diagnose und Zurücksetzen.", en: "History, diagnostics, and reset.")
         case .about: return L10n.t(de: "App-Version und Informationen.", en: "App version and information.")

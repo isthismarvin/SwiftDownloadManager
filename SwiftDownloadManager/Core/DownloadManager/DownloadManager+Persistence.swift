@@ -52,6 +52,14 @@ extension DownloadManager {
         return ((try? modelContext.fetch(descriptor)) ?? []).first
     }
 
+    func fetchAllItemsForUI() -> [DownloadItem] {
+        guard let modelContext = modelContext else { return [] }
+        let descriptor = FetchDescriptor<DownloadItem>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
     func recordHistory(for item: DownloadItem, outcome: HistoryOutcome) {
         guard let modelContext = modelContext else { return }
         let entry = HistoryEntry(

@@ -54,32 +54,11 @@ enum SidebarSelection: Hashable, Identifiable {
     }
 
     var icon: String {
-        switch self {
-        case .allDownloads: return "tray.and.arrow.down.fill"
-        case .queue: return "tray.full.fill"
-        case .scheduled: return "calendar.badge.clock"
-        case .downloading: return "arrow.down"
-        case .paused: return "pause.fill"
-        case .completed: return "checkmark.circle.fill"
-        case .failed: return "xmark.circle.fill"
-        case .missingFile: return "exclamationmark.triangle.fill"
-        case .today: return "calendar"
-        case .largeFiles: return "externaldrive.fill"
-        case .allFiles, .library, .customFolder: return "folder.fill"
-        }
+        DownloadStatusAppearance.sidebarIcon(for: self)
     }
 
     var iconColor: Color {
-        switch self {
-        case .allDownloads, .downloading, .allFiles, .library, .customFolder: return .blue
-        case .queue, .scheduled: return .purple
-        case .paused: return .orange
-        case .completed: return .green
-        case .failed: return .red
-        case .missingFile: return .orange
-        case .today: return .purple
-        case .largeFiles: return .indigo
-        }
+        DownloadStatusAppearance.sidebarColor(for: self)
     }
 
     static var downloadFilters: [SidebarSelection] {
@@ -391,7 +370,126 @@ final class DownloadListViewModel {
     }
 
     func triggerDeleteSelectionFromShortcut() {
+        guard canUseMainShortcuts else { return }
         deleteSelectionTrigger += 1
+    }
+
+    // MARK: - Keyboard shortcuts
+
+    var canUseMainShortcuts: Bool {
+        !isShowingAddSheet
+            && !isShowingHistorySheet
+            && !isShowingSettingsSheet
+            && pendingConfirmation == nil
+            && pendingConfirmationBatch == nil
+            && pendingCompletion == nil
+    }
+
+    private func primarySelectedRow() -> DownloadRowViewModel? {
+        guard let id = selectedDownloadID,
+              let item = downloadManager.fetchItemForUI(id: id) else { return nil }
+        return DownloadRowViewModel(item: item)
+    }
+
+    var canOpenSelected: Bool {
+        primarySelectedRow()?.canOpenFile == true
+    }
+
+    var canRevealSelectedInFinder: Bool {
+        primarySelectedRow()?.canRevealInFinder == true
+    }
+
+    var canCopySelectedURL: Bool {
+        selectedDownloadID != nil
+    }
+
+    var canPauseSelected: Bool {
+        primarySelectedRow()?.canPause == true
+    }
+
+    var canResumeSelected: Bool {
+        primarySelectedRow()?.canResume == true
+    }
+
+    var canCancelSelected: Bool {
+        primarySelectedRow()?.canCancel == true
+    }
+
+    var canTogglePauseResumeSelected: Bool {
+        canPauseSelected || canResumeSelected
+    }
+
+    var canResumeAll: Bool {
+        downloadManager.fetchAllItemsForUI().contains { DownloadRowViewModel(item: $0).canResume }
+    }
+
+    var canPauseAll: Bool {
+        downloadManager.fetchAllItemsForUI().contains { DownloadRowViewModel(item: $0).canPause }
+    }
+
+    func openSelectedFile() {
+        guard canUseMainShortcuts else { return }
+        primarySelectedRow()?.openFile()
+    }
+
+    func revealSelectedInFinder() {
+        guard canUseMainShortcuts else { return }
+        primarySelectedRow()?.revealInFinder()
+    }
+
+    func copySelectedURL() {
+        guard canUseMainShortcuts else { return }
+        primarySelectedRow()?.copyURL()
+    }
+
+    func pauseSelected() {
+        guard canUseMainShortcuts else { return }
+        guard let id = selectedDownloadID else { return }
+        downloadManager.pauseDownload(id: id)
+    }
+
+    func selectAllVisible() {
+        guard canUseMainShortcuts else { return }
+        let visible = filter(downloads: downloadManager.fetchAllItemsForUI())
+        selectedDownloadIDs = Set(visible.map(\.id))
+        selectionAnchorID = visible.first?.id
+    }
+
+    func clearSelection() {
+        guard canUseMainShortcuts else { return }
+        selectedDownloadIDs.removeAll()
+        selectionAnchorID = nil
+    }
+
+    func showHistory() {
+        guard canUseMainShortcuts else { return }
+        isShowingHistorySheet = true
+    }
+
+    func openDownloadsFolder() {
+        FinderHelper.openDefaultSaveDirectory()
+    }
+
+    func showNewFolderAlert() {
+        guard canUseMainShortcuts else { return }
+        isShowingNewFolderAlert = true
+    }
+
+    func selectSidebarFilter(_ filter: SidebarSelection) {
+        guard canUseMainShortcuts else { return }
+        selectedSidebarItem = filter
+    }
+
+    func toggleInspector() {
+        guard canUseMainShortcuts else { return }
+        withAnimation(AppTheme.inspectorSpring) {
+            AppSettings.shared.inspectorCollapsed.toggle()
+        }
+    }
+
+    func performSearch() {
+        guard canUseMainShortcuts else { return }
+        isSearchPresented = true
     }
 
     private func requestDeleteItems(_ items: [DownloadItem]) {
@@ -427,11 +525,13 @@ final class DownloadListViewModel {
     }
 
     func togglePauseResumeSelected() {
+        guard canUseMainShortcuts else { return }
         guard let id = selectedDownloadID else { return }
         downloadManager.togglePauseResume(id: id)
     }
 
     func resumeSelected() {
+        guard canUseMainShortcuts else { return }
         guard let id = selectedDownloadID,
               let item = downloadManager.fetchItemForUI(id: id) else { return }
         let row = DownloadRowViewModel(item: item)
@@ -440,6 +540,7 @@ final class DownloadListViewModel {
     }
 
     func cancelSelected() {
+        guard canUseMainShortcuts else { return }
         guard let id = selectedDownloadID,
               let item = downloadManager.fetchItemForUI(id: id) else { return }
         let row = DownloadRowViewModel(item: item)

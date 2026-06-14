@@ -117,34 +117,11 @@ struct DownloadRowViewModel {
     }
 
     var statusBadge: StatusBadgeInfo {
-        switch status {
-        case .received:
-            return StatusBadgeInfo(label: L10n.t(de: "Empfangen", en: "Received"), icon: "tray.and.arrow.down", color: .secondary)
-        case .pendingConfirmation:
-            return StatusBadgeInfo(label: L10n.t(de: "Wartet auf Bestätigung", en: "Awaiting Confirmation"), icon: "hand.raised.circle.fill", color: .yellow)
-        case .queued:
-            if isScheduled {
-                return StatusBadgeInfo(
-                    label: L10n.t(de: "Geplant", en: "Scheduled"),
-                    icon: "calendar.badge.clock",
-                    color: .purple
-                )
-            }
-            if isHeldInQueue {
-                return StatusBadgeInfo(label: L10n.t(de: "Gehalten", en: "Held"), icon: "tray.fill", color: .orange)
-            }
-            return StatusBadgeInfo(label: L10n.t(de: "In Warteschlange", en: "Queued"), icon: "clock.fill", color: .secondary)
-        case .downloading:
-            return StatusBadgeInfo(label: L10n.t(de: "Lädt herunter", en: "Downloading"), icon: "arrow.down.circle.fill", color: .blue)
-        case .paused:
-            return StatusBadgeInfo(label: L10n.t(de: "Pausiert", en: "Paused"), icon: "pause.circle.fill", color: .orange)
-        case .completed:
-            return StatusBadgeInfo(label: L10n.t(de: "Abgeschlossen", en: "Completed"), icon: "checkmark.circle.fill", color: .green)
-        case .failed:
-            return StatusBadgeInfo(label: L10n.t(de: "Fehlgeschlagen", en: "Failed"), icon: "xmark.circle.fill", color: .red)
-        case .cancelled:
-            return StatusBadgeInfo(label: L10n.t(de: "Abgebrochen", en: "Cancelled"), icon: "minus.circle.fill", color: .secondary)
-        }
+        DownloadStatusAppearance.badge(
+            for: status,
+            isScheduled: isScheduled,
+            isHeldInQueue: isHeldInQueue
+        )
     }
 
     /// True for completed archive files the user can extract in place.
