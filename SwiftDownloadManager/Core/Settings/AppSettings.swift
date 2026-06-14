@@ -498,7 +498,9 @@ final class AppSettings {
             rawValue: defaults.string(forKey: Key.conflictPolicy) ?? ""
         ) ?? .rename
         useCustomSpeedLimit = defaults.bool(forKey: Key.useCustomSpeedLimit)
-        customSpeedLimitBytesPerSecond = defaults.object(forKey: Key.customSpeedLimitBytesPerSecond) as? Int64 ?? 3_000_000
+        customSpeedLimitBytesPerSecond = defaults.object(
+            forKey: Key.customSpeedLimitBytesPerSecond
+        ) as? Int64 ?? 3_000_000
         defaultStartWhenOnWiFi = defaults.bool(forKey: Key.defaultStartWhenOnWiFi)
         let timeout = defaults.integer(forKey: Key.probeTimeoutSeconds)
         probeTimeoutSeconds = timeout == 0 ? 30 : timeout

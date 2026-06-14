@@ -36,8 +36,14 @@ struct NotificationsSettingsPanel: View {
                                     systemImage: "hourglass",
                                     isOn: $appSettings.notifyOnStall,
                                     help: L10n.t(
-                                        de: "Benachrichtigung, wenn ein Download zu lange keinen Fortschritt macht. Erkennung unter Intelligenz → Download-Engine.",
-                                        en: "Notification when a download stops making progress. Detection is under Intelligence → Download Engine."
+                                        de: """
+                                            Benachrichtigung, wenn ein Download zu lange keinen Fortschritt macht. \
+                                            Erkennung unter Intelligenz → Download-Engine.
+                                            """,
+                                        en: """
+                                            Notification when a download stops making progress. \
+                                            Detection is under Intelligence → Download Engine.
+                                            """
                                     )
                                 )
                                 Divider().padding(.leading, 28)
@@ -85,7 +91,10 @@ struct NotificationsSettingsPanel: View {
                             title: L10n.t(de: "Aktive Downloads im Dock anzeigen", en: "Show active downloads in Dock"),
                             systemImage: "app.dock",
                             isOn: $appSettings.showDockBadge,
-                            subtitle: L10n.t(de: "Badge mit Anzahl laufender Downloads", en: "Badge with number of active downloads"),
+                            subtitle: L10n.t(
+                                de: "Badge mit Anzahl laufender Downloads",
+                                en: "Badge with number of active downloads"
+                            ),
                             help: L10n.t(
                                 de: "Zeigt die Anzahl aktiver Downloads als Zahl auf dem App-Dock-Icon.",
                                 en: "Shows the number of active downloads as a badge on the app Dock icon."
@@ -97,7 +106,10 @@ struct NotificationsSettingsPanel: View {
                 SettingsPanelSection(title: L10n.t(de: "Systemeinstellungen", en: "System Settings")) {
                     SettingsRoundedCard {
                         SettingsActionButtonRow(
-                            title: L10n.t(de: "Benachrichtigungen in Systemeinstellungen", en: "Notifications in System Settings"),
+                            title: L10n.t(
+                                de: "Benachrichtigungen in Systemeinstellungen",
+                                en: "Notifications in System Settings"
+                            ),
                             systemImage: "gearshape",
                             help: L10n.t(
                                 de: "Öffnet die macOS-Systemeinstellungen für Benachrichtigungsberechtigungen.",

@@ -13,8 +13,14 @@ struct IntelligenceSettingsPanel: View {
                             systemImage: "sparkles",
                             isOn: $appSettings.smartFeaturesEnabled,
                             help: L10n.t(
-                                de: "Master-Schalter für alle intelligenten Vorschläge, Filter und Automatismen.",
-                                en: "Master switch for all smart suggestions, filters, and automations."
+                                        de: """
+                                            Master-Schalter für alle intelligenten Vorschläge, \
+                                            Filter und Automatismen.
+                                            """,
+                                        en: """
+                                            Master switch for all smart suggestions, \
+                                            filters, and automations.
+                                            """
                             )
                         )
                     }
@@ -29,8 +35,14 @@ struct IntelligenceSettingsPanel: View {
                                     systemImage: "folder.badge.gearshape",
                                     isOn: $appSettings.rememberFolderPerHost,
                                     help: L10n.t(
-                                        de: "Schlägt beim Bestätigungsdialog den zuletzt genutzten Speicherort pro Host vor.",
-                                        en: "Suggests the last used save location per host in the confirmation dialog."
+                                        de: """
+                                            Schlägt beim Bestätigungsdialog den zuletzt genutzten \
+                                            Speicherort pro Host vor.
+                                            """,
+                                        en: """
+                                            Suggests the last used save location per host \
+                                            in the confirmation dialog.
+                                            """
                                     )
                                 )
                                 Divider()
@@ -45,7 +57,10 @@ struct IntelligenceSettingsPanel: View {
                                 )
                                 Divider()
                                 SettingsToggleRow(
-                                    title: L10n.t(de: "Post-Download-Aktionen nach Typ", en: "Post-download actions by type"),
+                                    title: L10n.t(
+                                        de: "Post-Download-Aktionen nach Typ",
+                                        en: "Post-download actions by type"
+                                    ),
                                     systemImage: "archivebox",
                                     isOn: $appSettings.smartPostDownloadActions,
                                     help: L10n.t(
@@ -65,8 +80,14 @@ struct IntelligenceSettingsPanel: View {
                                     systemImage: "gauge.with.needle",
                                     isOn: $appSettings.fairBandwidthSharing,
                                     help: L10n.t(
-                                        de: "Teilt das globale Speed-Limit gleichmäßig auf aktive Downloads auf.",
-                                        en: "Splits the global speed limit evenly across active downloads."
+                                        de: """
+                                            Teilt das globale Speed-Limit gleichmäßig auf \
+                                            aktive Downloads auf.
+                                            """,
+                                        en: """
+                                            Splits the global speed limit evenly across \
+                                            active downloads.
+                                            """
                                     )
                                 )
                                 Divider()
@@ -75,8 +96,14 @@ struct IntelligenceSettingsPanel: View {
                                     systemImage: "hourglass",
                                     isOn: $appSettings.stallDetectionEnabled,
                                     help: L10n.t(
-                                        de: "Erkennt Downloads ohne Fortschritt und kann sie neu anstoßen.",
-                                        en: "Detects downloads with no progress and can restart them."
+                                        de: """
+                                            Erkennt Downloads ohne Fortschritt und kann sie \
+                                            neu anstoßen.
+                                            """,
+                                        en: """
+                                            Detects downloads with no progress and can \
+                                            restart them.
+                                            """
                                     )
                                 )
                                 Divider()
@@ -86,8 +113,14 @@ struct IntelligenceSettingsPanel: View {
                                     range: 30...600,
                                     step: 30,
                                     help: L10n.t(
-                                        de: "Zeit ohne Fortschritt, nach der ein Download als hängend gilt.",
-                                        en: "Time without progress before a download is considered stalled."
+                                        de: """
+                                            Zeit ohne Fortschritt, nach der ein Download als \
+                                            hängend gilt.
+                                            """,
+                                        en: """
+                                            Time without progress before a download is \
+                                            considered stalled.
+                                            """
                                     )
                                 )
                                 Divider()

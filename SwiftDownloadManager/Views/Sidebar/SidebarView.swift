@@ -60,7 +60,10 @@ struct SidebarView: View {
                 viewModel.createFolder()
             }
         } message: {
-            Text(L10n.t(de: "Gib einen Namen für den neuen Ordner ein.", en: "Enter a name for the new folder."))
+            Text(L10n.t(
+                de: "Gib einen Namen für den neuen Ordner ein.",
+                en: "Enter a name for the new folder."
+            ))
         }
         .alert(L10n.t(de: "Ordner umbenennen", en: "Rename Folder"), isPresented: Binding(
             get: { folderToRename != nil },
