@@ -174,9 +174,11 @@ struct DownloadDetailInspector: View {
         }
         .help(viewModel.errorMessage ?? L10n.t(de: "Fehlgeschlagen", en: "Failed"))
     }
+}
 
-    // MARK: - Expanded
+// MARK: - Expanded Chrome & Columns
 
+extension DownloadDetailInspector {
     private var expandedChrome: some View {
         VStack(spacing: 0) {
             expandedHeader
@@ -349,10 +351,10 @@ struct DownloadDetailInspector: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .help(sha)
 
-                Button(action: {
+                Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(sha, forType: .string)
-                }) {
+                } label: {
                     Image(systemName: "doc.on.doc")
                         .font(.system(size: 9))
                 }
@@ -410,12 +412,14 @@ struct DownloadDetailInspector: View {
                 .frame(width: 52, alignment: .leading)
 
             Menu {
-                ForEach(DownloadPriority.allCases) { p in
-                    Button(action: { viewModel.setPriority(p) }) {
-                        if viewModel.priority == p {
-                            Label("\(p.displayName) ✓", systemImage: p.iconName)
+                ForEach(DownloadPriority.allCases) { priorityOption in
+                    Button {
+                        viewModel.setPriority(priorityOption)
+                    } label: {
+                        if viewModel.priority == priorityOption {
+                            Label("\(priorityOption.displayName) ✓", systemImage: priorityOption.iconName)
                         } else {
-                            Label(p.displayName, systemImage: p.iconName)
+                            Label(priorityOption.displayName, systemImage: priorityOption.iconName)
                         }
                     }
                 }
@@ -449,9 +453,9 @@ struct DownloadDetailInspector: View {
 
             Menu {
                 ForEach(SpeedLimitPreset.allCases) { preset in
-                    Button(action: {
+                    Button {
                         viewModel.setSpeedLimit(preset.rawValue > 0 ? preset.rawValue : nil)
-                    }) {
+                    } label: {
                         let isSelected = (viewModel.speedLimit == nil && preset == .unlimited)
                             || (viewModel.speedLimit == preset.rawValue)
                         if isSelected {
@@ -476,9 +480,11 @@ struct DownloadDetailInspector: View {
             Spacer()
         }
     }
+}
 
-    // MARK: - Middle: Chart Metrics
+// MARK: - Middle: Chart Metrics
 
+extension DownloadDetailInspector {
     private var middleMetricsColumn: some View {
         VStack(alignment: .leading, spacing: 8) {
             columnTitle(L10n.t(de: "Transfer", en: "Transfer"))
@@ -542,7 +548,7 @@ struct DownloadDetailInspector: View {
                     icon: "square.split.2x2",
                     label: L10n.t(de: "Segmente", en: "Segments"),
                     value: viewModel.segmentsCountText
-                ),
+                )
             ]
         case .completed:
             var rows = [
@@ -567,7 +573,7 @@ struct DownloadDetailInspector: View {
                     icon: "calendar",
                     label: L10n.t(de: "Abgeschlossen", en: "Completed"),
                     value: viewModel.completedRelativeText
-                ),
+                )
             ]
             if !viewModel.fileExistsOnDisk {
                 rows.append(
@@ -602,7 +608,7 @@ struct DownloadDetailInspector: View {
                     icon: "square.split.2x2",
                     label: L10n.t(de: "Segmente", en: "Segments"),
                     value: viewModel.segmentsCountText
-                ),
+                )
             ]
         case .failed:
             return [
@@ -616,7 +622,7 @@ struct DownloadDetailInspector: View {
                     icon: "arrow.down.circle",
                     label: L10n.t(de: "Heruntergeladen", en: "Downloaded"),
                     value: viewModel.downloadedText
-                ),
+                )
             ]
         default:
             return [
@@ -634,7 +640,7 @@ struct DownloadDetailInspector: View {
                     icon: "network",
                     label: L10n.t(de: "Verbindungen", en: "Connections"),
                     value: viewModel.connectionsText
-                ),
+                )
             ]
         }
     }
@@ -689,7 +695,10 @@ struct DownloadDetailInspector: View {
                 .foregroundStyle(.secondary)
 
                 VStack(spacing: 4) {
-                    ForEach(Array(viewModel.segments.sorted(by: { $0.startOffset < $1.startOffset }).prefix(6))) { segment in
+                    let sortedSegments = Array(
+                        viewModel.segments.sorted(by: { $0.startOffset < $1.startOffset }).prefix(6)
+                    )
+                    ForEach(sortedSegments) { segment in
                         compactSegmentRow(segment)
                     }
                 }

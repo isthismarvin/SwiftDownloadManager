@@ -33,43 +33,22 @@ enum DownloadEvent: Sendable {
     /// byte 0. All previous progress was discarded; the item does not support
     /// resuming.
     case restartedAsSingleStream(id: UUID, bytesTotal: Int64)
-}
 
-/// Speed limiter shared across downloads, based on a virtual clock.
-/// Each chunk atomically reserves a time slot proportional to its size, so the
-/// combined throughput of any number of concurrent segments never exceeds the
-/// limit (the previous token bucket let N segments overshoot N-fold).
-final class SpeedLimiter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var limit: Int64 = 0
-    private var nextSlot = Date.distantPast
-
-    func setLimit(_ limit: Int64) {
-        lock.lock()
-        self.limit = limit
-        self.nextSlot = Date.distantPast
-        lock.unlock()
-    }
-
-    /// Returns the delay in seconds before `bytesCount` may be written (0 = immediate).
-    func delayBeforeWrite(bytesCount: Int) -> TimeInterval {
-        lock.lock()
-        defer { lock.unlock() }
-
-        guard limit > 0 else { return 0 }
-
-        let now = Date()
-        let start = max(now, nextSlot)
-        // Cap the virtual clock to 5.0 seconds in the future so that bursts or low speed limits
-        // do not schedule writes tens of seconds out into GCD timers.
-        let horizon = now.addingTimeInterval(5.0)
-        let scheduled = start.addingTimeInterval(Double(bytesCount) / Double(limit))
-        nextSlot = min(scheduled, horizon)
-        return start.timeIntervalSince(now)
+    var downloadID: UUID {
+        switch self {
+        case let .progress(id, _, _),
+             let .segmentProgress(id, _, _),
+             let .segmentsUpdated(id, _),
+             let .paused(id, _, _, _),
+             let .completed(id, _),
+             let .failed(id, _, _, _),
+             let .restartedAsSingleStream(id, _):
+            return id
+        }
     }
 }
 
-final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+final class DownloadEngine: NSObject, @unchecked Sendable {
     private static let logger = Logger(subsystem: "nrw.marvin.SwiftDownloadManager", category: "Engine")
 
     private var maxSegmentRetries = 3
@@ -90,150 +69,6 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         delegateQueue.name = "com.swiftdownloadmanager.urlsession"
         return URLSession(configuration: configuration, delegate: self, delegateQueue: delegateQueue)
     }()
-
-    private final class ActiveDownload: @unchecked Sendable {
-        /// Lifecycle of a download. Transitions are one-way; `closed` is terminal
-        /// (file handle released). Any state other than `running` means no more
-        /// writes or events should be produced.
-        enum Phase {
-            case running
-            case pausing
-            case failed
-            case finished
-            case closed
-        }
-
-        let id: UUID
-        let url: URL
-        let requestHeaders: [String: String]
-        let fileHandle: FileHandle
-        let filePath: String
-        var bytesTotal: Int64
-        var segments: [Int: SegmentInfo]
-        var tasks: [Int: URLSessionDataTask] = [:]
-        var sentRangeHeader: [Int: Bool] = [:]
-        var retryCounts: [Int: Int] = [:]
-        var phase: Phase = .running
-        var isSingleSegmentFallback = false
-        /// Task-label index of the one task that survives a single-stream fallback.
-        var fallbackReceivingIndex: Int?
-        var sequentialWriteOffset: Int64 = 0
-        let maxConcurrentConnections: Int
-        /// Chunks accepted from URLSession but not yet written to disk.
-        var pendingWrites: Int = 0
-        /// Bytes accepted from URLSession but not yet written to disk.
-        var bufferedBytes: Int = 0
-        /// Task-label indexes currently suspended for backpressure.
-        var suspendedTaskIndexes: Set<Int> = []
-        /// Effective segment indexes whose task ended without error.
-        var cleanlyFinishedSegments: Set<Int> = []
-        /// Coalesces progress events to ~10 Hz per download.
-        var lastProgressYieldAt = Date.distantPast
-        let writeQueue: DispatchQueue
-        let lock = NSLock()
-        let localSpeedLimiter = SpeedLimiter()
-
-        init(
-            id: UUID,
-            url: URL,
-            requestHeaders: [String: String] = [:],
-            fileHandle: FileHandle,
-            filePath: String,
-            bytesTotal: Int64,
-            segments: [SegmentInfo],
-            maxConcurrentConnections: Int = 4,
-            speedLimit: Int64? = nil
-        ) {
-            self.id = id
-            self.url = url
-            self.requestHeaders = requestHeaders
-            self.fileHandle = fileHandle
-            self.filePath = filePath
-            self.bytesTotal = bytesTotal
-            self.segments = SegmentIndexMap.make(from: segments)
-            self.maxConcurrentConnections = max(1, maxConcurrentConnections)
-            self.writeQueue = DispatchQueue(label: "com.swiftdownloadmanager.write.\(id.uuidString)")
-            self.sequentialWriteOffset = segments.map(\.bytesReceived).reduce(0, +)
-            if let speedLimit = speedLimit, speedLimit > 0 {
-                self.localSpeedLimiter.setLimit(speedLimit)
-            }
-        }
-
-        // MARK: - Locked helpers (caller MUST hold `lock`)
-        // NSLock is non-reentrant; these variants exist so methods that already
-        // hold the lock never re-lock (which would deadlock permanently).
-
-        func snapshotSegmentsLocked() -> [SegmentInfo] {
-            segments.values.sorted { $0.index < $1.index }
-        }
-
-        func totalBytesReceivedLocked() -> Int64 {
-            if isSingleSegmentFallback {
-                return sequentialWriteOffset
-            }
-            return segments.values.map(\.bytesReceived).reduce(0, +)
-        }
-
-        func computedBytesTotalLocked() -> Int64 {
-            if bytesTotal > 0 { return bytesTotal }
-            let hasOpenEnded = segments.values.contains { $0.endOffset == -1 }
-            if hasOpenEnded { return -1 }
-            return segments.values.map { $0.endOffset - $0.startOffset + 1 }.reduce(0, +)
-        }
-
-        /// Returns the tasks to resume once the write buffer drained below the
-        /// low watermark. Caller must hold `lock` and resume them after unlocking.
-        func drainBackpressureLocked(lowWatermark: Int) -> [URLSessionDataTask] {
-            guard !suspendedTaskIndexes.isEmpty,
-                  bufferedBytes <= lowWatermark,
-                  phase == .running else {
-                return []
-            }
-            let tasksToResume = suspendedTaskIndexes.compactMap { tasks[$0] }
-            suspendedTaskIndexes.removeAll()
-            return tasksToResume
-        }
-
-        // MARK: - Locking wrappers
-
-        func snapshotSegments() -> [SegmentInfo] {
-            lock.lock()
-            defer { lock.unlock() }
-            return snapshotSegmentsLocked()
-        }
-
-        func totalBytesReceived() -> Int64 {
-            lock.lock()
-            defer { lock.unlock() }
-            return totalBytesReceivedLocked()
-        }
-
-        func computedBytesTotal() -> Int64 {
-            lock.lock()
-            defer { lock.unlock() }
-            return computedBytesTotalLocked()
-        }
-
-        func close() {
-            lock.lock()
-            defer { lock.unlock() }
-            guard phase != .closed else { return }
-            phase = .closed
-            try? fileHandle.synchronize()
-            try? fileHandle.close()
-        }
-
-        /// Drains pending writes asynchronously, then closes the file handle.
-        /// The caller must already have moved `phase` out of `.running`.
-        func shutdown(cancelTasks: [URLSessionDataTask]) {
-            for task in cancelTasks {
-                task.cancel()
-            }
-            writeQueue.async { [self] in
-                close()
-            }
-        }
-    }
 
     private var activeDownloads: [UUID: ActiveDownload] = [:]
     private let lock = NSLock()
@@ -450,205 +285,7 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         }
     }
 
-    // MARK: - URLSessionDataDelegate
 
-    func urlSession(
-        _ session: URLSession,
-        dataTask: URLSessionDataTask,
-        didReceive response: URLResponse,
-        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
-    ) {
-        guard let taskDescription = dataTask.taskDescription else {
-            completionHandler(.cancel)
-            return
-        }
-
-        let components = taskDescription.split(separator: "|")
-        guard components.count == 2,
-              let id = UUID(uuidString: String(components[0])),
-              let segmentIndex = Int(components[1]) else {
-            completionHandler(.cancel)
-            return
-        }
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            completionHandler(.allow)
-            return
-        }
-
-        let statusCode = httpResponse.statusCode
-
-        lock.lock()
-        let active = activeDownloads[id]
-        let cont = continuation
-        lock.unlock()
-
-        guard let active = active else {
-            completionHandler(.cancel)
-            return
-        }
-
-        if statusCode >= 400 {
-            completionHandler(.cancel)
-            failDownload(
-                active: active,
-                error: NSError(
-                    domain: "DownloadEngine",
-                    code: statusCode,
-                    userInfo: [NSLocalizedDescriptionKey: "HTTP \(statusCode): \(HTTPURLResponse.localizedString(forStatusCode: statusCode))"]
-                )
-            )
-            return
-        }
-
-        active.lock.lock()
-        let sentRange = active.sentRangeHeader[segmentIndex] == true
-        active.lock.unlock()
-
-        if sentRange && statusCode == 200 {
-            // The server ignored the Range header and sends the full file from
-            // byte 0. Discard all progress and write this one stream from scratch.
-            if let bytesTotal = restartAsSingleStream(active: active, receivingSegmentIndex: segmentIndex) {
-                completionHandler(.allow)
-                cont?.yield(.restartedAsSingleStream(id: id, bytesTotal: bytesTotal))
-            } else {
-                completionHandler(.cancel)
-            }
-            return
-        }
-
-        if sentRange && statusCode != 206 {
-            completionHandler(.cancel)
-            failDownload(
-                active: active,
-                error: NSError(
-                    domain: "DownloadEngine",
-                    code: statusCode,
-                    userInfo: [NSLocalizedDescriptionKey: "Unexpected HTTP \(statusCode) for range request"]
-                )
-            )
-            return
-        }
-
-        completionHandler(.allow)
-    }
-
-    func urlSession(
-        _ session: URLSession,
-        dataTask: URLSessionDataTask,
-        didReceive data: Data
-    ) {
-        guard let taskDescription = dataTask.taskDescription else { return }
-        let components = taskDescription.split(separator: "|")
-        guard components.count == 2,
-              let id = UUID(uuidString: String(components[0])),
-              let segmentIndex = Int(components[1]) else { return }
-
-        lock.lock()
-        let active = activeDownloads[id]
-        let cont = continuation
-        lock.unlock()
-
-        guard let active = active else { return }
-
-        active.lock.lock()
-        guard active.phase == .running else {
-            active.lock.unlock()
-            return
-        }
-        active.pendingWrites += 1
-        active.bufferedBytes += data.count
-
-        // Backpressure: suspend network data tasks when too much data is buffered in
-        // memory waiting for (possibly speed-limited) disk writes.
-        var tasksToSuspend: [URLSessionDataTask] = []
-        if active.bufferedBytes >= Self.backpressureHighWatermark {
-            for (index, task) in active.tasks where !active.suspendedTaskIndexes.contains(index) {
-                active.suspendedTaskIndexes.insert(index)
-                tasksToSuspend.append(task)
-            }
-        }
-        active.lock.unlock()
-
-        for task in tasksToSuspend {
-            task.suspend()
-        }
-
-        let globalDelay = speedLimiter.delayBeforeWrite(bytesCount: data.count)
-        let localDelay = active.localSpeedLimiter.delayBeforeWrite(bytesCount: data.count)
-        let delay = max(globalDelay, localDelay)
-
-        // Captures self strongly so the pendingWrites counter is always balanced.
-        active.writeQueue.asyncAfter(deadline: .now() + delay) {
-            self.writeData(data, to: active, segmentIndex: segmentIndex, continuation: cont)
-        }
-    }
-
-    func urlSession(
-        _ session: URLSession,
-        task: URLSessionTask,
-        didCompleteWithError error: Error?
-    ) {
-        guard let taskDescription = task.taskDescription else { return }
-        let components = taskDescription.split(separator: "|")
-        guard components.count == 2,
-              let id = UUID(uuidString: String(components[0])),
-              let segmentIndex = Int(components[1]) else { return }
-
-        lock.lock()
-        let active = activeDownloads[id]
-        lock.unlock()
-
-        guard let active = active else { return }
-
-        active.lock.lock()
-        active.tasks.removeValue(forKey: segmentIndex)
-
-        guard active.phase == .running else {
-            active.lock.unlock()
-            return
-        }
-
-        if let error = error {
-            let nsError = error as NSError
-            if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
-                active.lock.unlock()
-                let cont = continuation
-                while tryDynamicReSegmentation(active: active, continuation: cont) {}
-                maybeFinish(active: active)
-                return
-            }
-
-            let retryCount = active.retryCounts[segmentIndex, default: 0]
-            if retryCount < maxSegmentRetries {
-                active.retryCounts[segmentIndex] = retryCount + 1
-                active.lock.unlock()
-                let backoff = pow(2.0, Double(retryCount))
-                DispatchQueue.global().asyncAfter(deadline: .now() + backoff) { [weak self] in
-                    self?.retrySegment(active: active, segmentIndex: segmentIndex)
-                }
-                return
-            }
-
-            active.lock.unlock()
-            failDownload(active: active, error: error)
-            return
-        }
-
-        if active.isSingleSegmentFallback && segmentIndex != active.fallbackReceivingIndex {
-            // Late clean completion of a task that was superseded by the fallback.
-            active.lock.unlock()
-            return
-        }
-
-        let effectiveIndex = active.isSingleSegmentFallback ? 0 : segmentIndex
-        active.cleanlyFinishedSegments.insert(effectiveIndex)
-        active.lock.unlock()
-
-        let cont = continuation
-        while tryDynamicReSegmentation(active: active, continuation: cont) {}
-        maybeFinish(active: active)
-    }
 
     // MARK: - Private
 
@@ -699,7 +336,12 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         let allSegments = active.snapshotSegmentsLocked()
         active.lock.unlock()
 
-        Self.logger.info("Dynamic re-segmentation: split segment \(plan.parentIndex) at \(plan.childStartOffset), created child segment \(plan.childIndex) [\(plan.childStartOffset)-\(plan.childEndOffset)]")
+        Self.logger.info(
+            """
+            Dynamic re-segmentation: split segment \(plan.parentIndex) at \(plan.childStartOffset), \
+            created child segment \(plan.childIndex) [\(plan.childStartOffset)-\(plan.childEndOffset)]
+            """
+        )
 
         continuation?.yield(.segmentsUpdated(id: active.id, segments: allSegments))
 
@@ -1073,5 +715,207 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
 
         active.shutdown(cancelTasks: tasks)
         cont?.yield(.failed(id: active.id, error: error, segments: segments, bytesReceived: bytesReceived))
+    }
+}
+
+// MARK: - URLSessionDataDelegate
+
+extension DownloadEngine: URLSessionDataDelegate {
+    func urlSession(
+        _ session: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        guard let taskDescription = dataTask.taskDescription else {
+            completionHandler(.cancel)
+            return
+        }
+
+        let components = taskDescription.split(separator: "|")
+        guard components.count == 2,
+              let id = UUID(uuidString: String(components[0])),
+              let segmentIndex = Int(components[1]) else {
+            completionHandler(.cancel)
+            return
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            completionHandler(.allow)
+            return
+        }
+
+        let statusCode = httpResponse.statusCode
+
+        lock.lock()
+        let active = activeDownloads[id]
+        let cont = continuation
+        lock.unlock()
+
+        guard let active = active else {
+            completionHandler(.cancel)
+            return
+        }
+
+        if statusCode >= 400 {
+            completionHandler(.cancel)
+            failDownload(
+                active: active,
+                error: NSError(
+                    domain: "DownloadEngine",
+                    code: statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "HTTP \(statusCode): \(HTTPURLResponse.localizedString(forStatusCode: statusCode))"]
+                )
+            )
+            return
+        }
+
+        active.lock.lock()
+        let sentRange = active.sentRangeHeader[segmentIndex] == true
+        active.lock.unlock()
+
+        if sentRange && statusCode == 200 {
+            // The server ignored the Range header and sends the full file from
+            // byte 0. Discard all progress and write this one stream from scratch.
+            if let bytesTotal = restartAsSingleStream(active: active, receivingSegmentIndex: segmentIndex) {
+                completionHandler(.allow)
+                cont?.yield(.restartedAsSingleStream(id: id, bytesTotal: bytesTotal))
+            } else {
+                completionHandler(.cancel)
+            }
+            return
+        }
+
+        if sentRange && statusCode != 206 {
+            completionHandler(.cancel)
+            failDownload(
+                active: active,
+                error: NSError(
+                    domain: "DownloadEngine",
+                    code: statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "Unexpected HTTP \(statusCode) for range request"]
+                )
+            )
+            return
+        }
+
+        completionHandler(.allow)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive data: Data
+    ) {
+        guard let taskDescription = dataTask.taskDescription else { return }
+        let components = taskDescription.split(separator: "|")
+        guard components.count == 2,
+              let id = UUID(uuidString: String(components[0])),
+              let segmentIndex = Int(components[1]) else { return }
+
+        lock.lock()
+        let active = activeDownloads[id]
+        let cont = continuation
+        lock.unlock()
+
+        guard let active = active else { return }
+
+        active.lock.lock()
+        guard active.phase == .running else {
+            active.lock.unlock()
+            return
+        }
+        active.pendingWrites += 1
+        active.bufferedBytes += data.count
+
+        // Backpressure: suspend network data tasks when too much data is buffered in
+        // memory waiting for (possibly speed-limited) disk writes.
+        var tasksToSuspend: [URLSessionDataTask] = []
+        if active.bufferedBytes >= Self.backpressureHighWatermark {
+            for (index, task) in active.tasks where !active.suspendedTaskIndexes.contains(index) {
+                active.suspendedTaskIndexes.insert(index)
+                tasksToSuspend.append(task)
+            }
+        }
+        active.lock.unlock()
+
+        for task in tasksToSuspend {
+            task.suspend()
+        }
+
+        let globalDelay = speedLimiter.delayBeforeWrite(bytesCount: data.count)
+        let localDelay = active.localSpeedLimiter.delayBeforeWrite(bytesCount: data.count)
+        let delay = max(globalDelay, localDelay)
+
+        // Captures self strongly so the pendingWrites counter is always balanced.
+        active.writeQueue.asyncAfter(deadline: .now() + delay) {
+            self.writeData(data, to: active, segmentIndex: segmentIndex, continuation: cont)
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        guard let taskDescription = task.taskDescription else { return }
+        let components = taskDescription.split(separator: "|")
+        guard components.count == 2,
+              let id = UUID(uuidString: String(components[0])),
+              let segmentIndex = Int(components[1]) else { return }
+
+        lock.lock()
+        let active = activeDownloads[id]
+        lock.unlock()
+
+        guard let active = active else { return }
+
+        active.lock.lock()
+        active.tasks.removeValue(forKey: segmentIndex)
+
+        guard active.phase == .running else {
+            active.lock.unlock()
+            return
+        }
+
+        if let error = error {
+            let nsError = error as NSError
+            if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                active.lock.unlock()
+                let cont = continuation
+                while tryDynamicReSegmentation(active: active, continuation: cont) {}
+                maybeFinish(active: active)
+                return
+            }
+
+            let retryCount = active.retryCounts[segmentIndex, default: 0]
+            if retryCount < maxSegmentRetries {
+                active.retryCounts[segmentIndex] = retryCount + 1
+                active.lock.unlock()
+                let backoff = pow(2.0, Double(retryCount))
+                DispatchQueue.global().asyncAfter(deadline: .now() + backoff) { [weak self] in
+                    self?.retrySegment(active: active, segmentIndex: segmentIndex)
+                }
+                return
+            }
+
+            active.lock.unlock()
+            failDownload(active: active, error: error)
+            return
+        }
+
+        if active.isSingleSegmentFallback && segmentIndex != active.fallbackReceivingIndex {
+            // Late clean completion of a task that was superseded by the fallback.
+            active.lock.unlock()
+            return
+        }
+
+        let effectiveIndex = active.isSingleSegmentFallback ? 0 : segmentIndex
+        active.cleanlyFinishedSegments.insert(effectiveIndex)
+        active.lock.unlock()
+
+        let cont = continuation
+        while tryDynamicReSegmentation(active: active, continuation: cont) {}
+        maybeFinish(active: active)
     }
 }

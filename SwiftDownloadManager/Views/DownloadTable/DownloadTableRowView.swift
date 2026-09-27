@@ -149,12 +149,14 @@ struct DownloadTableRowView: View {
         }
 
         Menu(L10n.t(de: "Priorität", en: "Priority"), systemImage: viewModel.priority.iconName) {
-            ForEach(DownloadPriority.allCases) { p in
-                Button(action: { viewModel.setPriority(p) }) {
-                    if viewModel.priority == p {
-                        Label("\(p.displayName) ✓", systemImage: p.iconName)
+            ForEach(DownloadPriority.allCases) { priorityOption in
+                Button {
+                    viewModel.setPriority(priorityOption)
+                } label: {
+                    if viewModel.priority == priorityOption {
+                        Label("\(priorityOption.displayName) ✓", systemImage: priorityOption.iconName)
                     } else {
-                        Label(p.displayName, systemImage: p.iconName)
+                        Label(priorityOption.displayName, systemImage: priorityOption.iconName)
                     }
                 }
             }
@@ -162,9 +164,9 @@ struct DownloadTableRowView: View {
 
         Menu(L10n.t(de: "Geschw.-Limit", en: "Speed Limit"), systemImage: "speedometer") {
             ForEach(SpeedLimitPreset.allCases) { preset in
-                Button(action: {
+                Button {
                     viewModel.setSpeedLimit(preset.rawValue > 0 ? preset.rawValue : nil)
-                }) {
+                } label: {
                     let isSelected = (viewModel.speedLimit == nil && preset == .unlimited)
                         || (viewModel.speedLimit == preset.rawValue)
                     if isSelected {

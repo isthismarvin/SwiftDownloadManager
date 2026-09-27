@@ -322,7 +322,9 @@ extension DownloadManager {
                         en: "Not enough free disk space on the target volume."
                     )
                     saveNow()
-                    logger.error("Insufficient disk space for \(currentItem.fileName, privacy: .public): needed \(neededBytes) bytes, available \(available) bytes")
+                    logger.error(
+                        "Insufficient disk space for \(currentItem.fileName, privacy: .public): needed \(neededBytes) bytes, available \(available) bytes"
+                    )
                     processQueue()
                     return
                 }

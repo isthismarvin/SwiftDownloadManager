@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 swiftc \
+  SwiftDownloadManager/Core/DownloadEngine/SpeedLimiter.swift \
+  SwiftDownloadManager/Core/DownloadEngine/ActiveDownload.swift \
   SwiftDownloadManager/Core/DownloadEngine/DownloadEngine.swift \
   SwiftDownloadManager/Utilities/HTTPRequestParser.swift \
   SwiftDownloadManager/Utilities/URLSchemeParser.swift \
