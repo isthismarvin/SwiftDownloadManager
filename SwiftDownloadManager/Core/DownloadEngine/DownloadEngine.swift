@@ -660,6 +660,10 @@ final class DownloadEngine: NSObject, @unchecked Sendable {
         let headers = active.requestHeaders
         active.lock.unlock()
         RequestHeadersHelper.applying(headers, to: &request)
+        if request.value(forHTTPHeaderField: "Authorization") == nil,
+           let cred = SiteCredentialStore.credential(for: url) {
+            request.setValue(cred.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        }
         if bytesTotal > 0 && segment.endOffset != -1 {
             request.addValue("bytes=\(start)-\(segment.endOffset)", forHTTPHeaderField: "Range")
             sentRange = true

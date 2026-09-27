@@ -87,6 +87,41 @@ struct AutomationSettingsPanel: View {
                     }
                 }
 
+                // MARK: - Auto-Extract Archives
+                SettingsPanelSection(
+                    title: L10n.t(de: "Archiv-Verwaltung", en: "Archive Extraction"),
+                    footer: L10n.t(
+                        de: "Unterstützte Formate: ZIP, TAR, GZ, TGZ, BZ2, 7Z, RAR.",
+                        en: "Supported formats: ZIP, TAR, GZ, TGZ, BZ2, 7Z, RAR."
+                    )
+                ) {
+                    SettingsRoundedCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            SettingsToggleRow(
+                                title: L10n.t(de: "Archive automatisch entpacken", en: "Automatically extract archives"),
+                                systemImage: "archivebox.fill",
+                                isOn: $appSettings.autoExtractArchives,
+                                help: L10n.t(
+                                    de: "Entpackt heruntergeladene Archive sofort nach Abschluss in einen Zielordner.",
+                                    en: "Extracts downloaded archives into a destination folder immediately after completion."
+                                )
+                            )
+                            if appSettings.autoExtractArchives {
+                                Divider()
+                                SettingsToggleRow(
+                                    title: L10n.t(de: "Original in den Papierkorb legen", en: "Move original to Trash"),
+                                    systemImage: "trash",
+                                    isOn: $appSettings.trashArchiveAfterExtraction,
+                                    help: L10n.t(
+                                        de: "Verschiebt die Archivdatei nach erfolgreichem Entpacken in den Papierkorb.",
+                                        en: "Moves the archive file to the Trash after successful extraction."
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // MARK: - IDM Scheduler
                 SettingsPanelSection(
                     title: L10n.t(de: "Zeitplan (Scheduler)", en: "Scheduler"),

@@ -64,11 +64,13 @@ Swift Download Manager replaces the browser download bar with a proper queue on 
 - Smart filename conflict handling: rename, overwrite, or ask
 
 **Integrity & Security**
+- **Site Logins & HTTP Auth**: store credentials per domain with wildcard matching for HTTP Basic Auth and Bearer tokens
 - **Automatic Checksum Verification**: streamed SHA-256 and MD5 integrity calculation with instant copy
 - Security-scoped macOS bookmarks preserving access to external folders across restarts
 - Hardened runtime and App Sandbox compliant
 
 **Automation & Scheduling**
+- **Auto-Archive Extraction**: automatically unpacks completed archives (.zip, .tar, .tgz, .gz, .7z) with optional auto-trash
 - **Scheduled Time Windows**: define start and stop hours for automated queue execution
 - **Power Management**: automatically put Mac to sleep or quit the application when downloads complete
 - Wi‑Fi-only start enforcement
@@ -89,13 +91,13 @@ Swift Download Manager replaces the browser download bar with a proper queue on 
 
 **[→ Go to Releases](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest)**
 
-App and Chrome extension share the same version (**v2.2.0**).
+App and Chrome extension share the same version (**v2.3.0**).
 
 | Asset | Download |
 |-------|----------|
-| macOS app (recommended) | [SwiftDownloadManager-macOS-v2.2.0.dmg](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.2.0.dmg) |
-| macOS app (zip) | [SwiftDownloadManager-macOS-v2.2.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.2.0.zip) |
-| Chrome extension | [SwiftDownloadManager-ChromeExtension-v2.2.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.2.0.zip) |
+| macOS app (recommended) | [SwiftDownloadManager-macOS-v2.3.0.dmg](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.3.0.dmg) |
+| macOS app (zip) | [SwiftDownloadManager-macOS-v2.3.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.3.0.zip) |
+| Chrome extension | [SwiftDownloadManager-ChromeExtension-v2.3.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.3.0.zip) |
 
 ### macOS app
 
@@ -114,7 +116,7 @@ Requires **macOS 26.0** (Tahoe) or later.
 
 The companion extension talks to the app over localhost. **The app must be running.**
 
-1. Download and unzip [SwiftDownloadManager-ChromeExtension-v2.2.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.2.0.zip).
+1. Download and unzip [SwiftDownloadManager-ChromeExtension-v2.3.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.3.0.zip).
 2. Launch Swift Download Manager.
 3. In Chrome: `chrome://extensions` → **Developer mode** → **Load unpacked** → select the unzipped folder.
 4. Pin the extension. A green **✓** badge means the app is connected.
@@ -264,7 +266,7 @@ Contributions welcome — read [CONTRIBUTING.md](CONTRIBUTING.md) and [CLA.md](C
 
 ## License
 
-Source available — not MIT/GPL. See [LICENSE](LICENSE) · [TRADEMARK.md](TRADEMARK.md) · Copyright (c) 2026 Marvin
+Source available — not MIT/GPL. See [LICENSE](LICENSE) · Copyright (c) 2026 Marvin
 
 | | |
 |---|---|

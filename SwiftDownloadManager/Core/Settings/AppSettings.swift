@@ -81,6 +81,8 @@ final class AppSettings {
         static let segmentCountTiersJSON = "segmentCountTiersJSON"
         static let fairBandwidthSharing = "fairBandwidthSharing"
         static let smartPostDownloadActions = "smartPostDownloadActions"
+        static let autoExtractArchives = "autoExtractArchives"
+        static let trashArchiveAfterExtraction = "trashArchiveAfterExtraction"
         static let showInspectorInsights = "showInspectorInsights"
         static let notifyOnQueueBacklog = "notifyOnQueueBacklog"
         static let queueBacklogThreshold = "queueBacklogThreshold"
@@ -258,6 +260,14 @@ final class AppSettings {
 
     var smartPostDownloadActions: Bool {
         didSet { UserDefaults.standard.set(smartPostDownloadActions, forKey: Key.smartPostDownloadActions) }
+    }
+
+    var autoExtractArchives: Bool {
+        didSet { UserDefaults.standard.set(autoExtractArchives, forKey: Key.autoExtractArchives) }
+    }
+
+    var trashArchiveAfterExtraction: Bool {
+        didSet { UserDefaults.standard.set(trashArchiveAfterExtraction, forKey: Key.trashArchiveAfterExtraction) }
     }
 
     // MARK: - Scheduler & Power Management
@@ -569,6 +579,8 @@ final class AppSettings {
         rememberFileTypeActions = defaults.object(forKey: Key.rememberFileTypeActions) as? Bool ?? true
         detectDuplicateDownloads = defaults.object(forKey: Key.detectDuplicateDownloads) as? Bool ?? true
         smartPostDownloadActions = defaults.object(forKey: Key.smartPostDownloadActions) as? Bool ?? true
+        autoExtractArchives = defaults.bool(forKey: Key.autoExtractArchives)
+        trashArchiveAfterExtraction = defaults.bool(forKey: Key.trashArchiveAfterExtraction)
         schedulerEnabled = defaults.bool(forKey: Key.schedulerEnabled)
         schedulerStartHour = defaults.object(forKey: Key.schedulerStartHour) as? Int ?? 2
         schedulerStartMinute = defaults.object(forKey: Key.schedulerStartMinute) as? Int ?? 0
@@ -840,6 +852,8 @@ final class AppSettings {
             Key.segmentCountTiersJSON,
             Key.fairBandwidthSharing,
             Key.smartPostDownloadActions,
+            Key.autoExtractArchives,
+            Key.trashArchiveAfterExtraction,
             Key.showInspectorInsights,
             Key.notifyOnQueueBacklog,
             Key.queueBacklogThreshold,
@@ -894,6 +908,8 @@ final class AppSettings {
         rememberFileTypeActions = true
         detectDuplicateDownloads = true
         smartPostDownloadActions = true
+        autoExtractArchives = false
+        trashArchiveAfterExtraction = false
         schedulerEnabled = false
         schedulerStartHour = 2
         schedulerStartMinute = 0

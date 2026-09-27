@@ -16,7 +16,7 @@ Your contribution does **not** grant you the right to publish, redistribute, or 
 
 ## 4. No trademark grant
 
-Submitting a contribution does not grant rights to use the project name, logos, or branding. See [TRADEMARK.md](TRADEMARK.md).
+Submitting a contribution does not grant rights to use the project name, logos, or branding without permission.
 
 ## 5. Record
 

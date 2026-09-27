@@ -21,8 +21,11 @@ swiftc \
   SwiftDownloadManager/Utilities/BatchURLParser.swift \
   SwiftDownloadManager/Utilities/FileChecksumService.swift \
   SwiftDownloadManager/Core/Models/DownloadPriority.swift \
+  SwiftDownloadManager/Utilities/SiteCredentialStore.swift \
+  SwiftDownloadManager/Utilities/ArchiveExtractionService.swift \
   tests/TestStubs.swift \
   tests/DomainRuleStoreTests.swift \
+  tests/SiteCredentialStoreAndArchiveTests.swift \
   tests/ChaosTests.swift \
   tests/main.swift \
   -o tests/unittests

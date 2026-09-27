@@ -11,7 +11,7 @@ Thank you for your interest in contributing! This project is **source available*
 ## What you may not do
 
 - Publish, redistribute, or commercialize the code without written permission
-- Use the project name or branding for unofficial builds (see [TRADEMARK.md](TRADEMARK.md))
+- Use the project name or branding for unofficial builds
 
 Forking on GitHub **only to submit a PR back** to the official repo is allowed. Do not use forks to distribute a separate product.
 

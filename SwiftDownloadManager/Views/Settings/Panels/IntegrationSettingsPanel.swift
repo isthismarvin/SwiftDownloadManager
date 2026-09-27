@@ -59,6 +59,16 @@ struct IntegrationSettingsPanel: View {
                 }
 
                 SettingsPanelSection(
+                    title: L10n.t(de: "Website-Zugangsdaten (Site Logins)", en: "Site Logins & Passwords"),
+                    footer: L10n.t(
+                        de: "Zugangsdaten für geschützte Downloads (HTTP Basic Auth & Bearer Tokens).",
+                        en: "Credentials for protected downloads (HTTP Basic Auth & Bearer Tokens)."
+                    )
+                ) {
+                    SiteLoginsSettingsSection()
+                }
+
+                SettingsPanelSection(
                     title: L10n.t(de: "Gelernte Regeln", en: "Learned Rules"),
                     footer: L10n.t(
                         de: "Automatisch gespeicherte Vorschläge aus abgeschlossenen Downloads.",

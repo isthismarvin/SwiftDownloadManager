@@ -142,7 +142,15 @@ extension DownloadManager {
         activeDownloadItems.removeValue(forKey: id)
         if let item = fetchItem(id: id) {
             item.status = .failed
-            item.errorMessage = error.localizedDescription
+            let nsError = error as NSError
+            if nsError.code == 401 {
+                item.errorMessage = L10n.t(
+                    de: "HTTP 401: Authentifizierung erforderlich (Site Login hinterlegen)",
+                    en: "HTTP 401: Authentication required (Add Site Login in Settings)"
+                )
+            } else {
+                item.errorMessage = error.localizedDescription
+            }
             if bytesReceived > 0 {
                 item.bytesReceived = bytesReceived
             }

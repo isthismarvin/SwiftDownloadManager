@@ -55,6 +55,10 @@ enum DownloadProbeService {
         request.httpMethod = "HEAD"
         request.timeoutInterval = TimeInterval(AppSettings.shared.probeTimeoutSeconds)
         RequestHeadersHelper.applying(headers, to: &request)
+        if request.value(forHTTPHeaderField: "Authorization") == nil,
+           let cred = SiteCredentialStore.credential(for: url) {
+            request.setValue(cred.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        }
 
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
@@ -76,6 +80,10 @@ enum DownloadProbeService {
         request.setValue("bytes=0-0", forHTTPHeaderField: "Range")
         request.timeoutInterval = TimeInterval(AppSettings.shared.probeTimeoutSeconds)
         RequestHeadersHelper.applying(headers, to: &request)
+        if request.value(forHTTPHeaderField: "Authorization") == nil,
+           let cred = SiteCredentialStore.credential(for: url) {
+            request.setValue(cred.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        }
 
         do {
             let (_, response) = try await URLSession.shared.bytes(for: request)

@@ -408,6 +408,15 @@ extension DownloadManager {
     }
 
     func performPostDownloadAction(for item: DownloadItem, at localURL: URL) {
+        let isArchive = ArchiveExtractionService.isArchive(url: localURL)
+        if item.postDownloadAction == .extractArchive || (AppSettings.shared.autoExtractArchives && isArchive) {
+            ArchiveExtractionService.extractArchive(
+                at: localURL,
+                trashOriginal: AppSettings.shared.trashArchiveAfterExtraction
+            )
+            return
+        }
+
         switch item.postDownloadAction {
         case .none:
             break
@@ -416,7 +425,10 @@ extension DownloadManager {
         case .openFile:
             NSWorkspace.shared.open(localURL)
         case .extractArchive:
-            NSWorkspace.shared.open(localURL)
+            ArchiveExtractionService.extractArchive(
+                at: localURL,
+                trashOriginal: AppSettings.shared.trashArchiveAfterExtraction
+            )
         }
     }
 

@@ -61,14 +61,27 @@ fastlane/test_output
 # SwiftLint / SwiftFormat
 .swiftlint-cache/
 
-# Editor / IDE
+# Editor / IDE / AI Tools
 .cursor/
-.vscode/settings.json
+.vscode/
+.idea/
+.fleet/
+.gemini/
+.claude/
+.agents/
 *.swp
 *.swo
+*~
 
-# Xcode build metadata (regenerated locally)
+# Xcode build metadata & archives (regenerated locally)
 *.xcbuilddata
+*.xcarchive
+*.ipa
+
+# Logs & Diagnostics
+*.log
+*.crash
+*.diag
 
 # Secrets — never commit credentials
 .env

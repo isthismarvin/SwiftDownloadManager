@@ -468,6 +468,10 @@ do {
     expect(delay2 > 0, "consecutive chunk produces delay according to speed limit")
 }
 
+// MARK: - SiteCredentialStore & ArchiveExtraction
+
+SiteCredentialStoreAndArchiveTests.run()
+
 // MARK: - Chaos / stress
 
 runChaosTests(failures: &failures)
