@@ -83,13 +83,23 @@ enum FileTypeHelper {
         }
     }
 
+    private static let systemIconCache = NSCache<NSString, NSImage>()
+
     /// Liefert das echte macOS-Systemicon für den Dateityp (wie im Finder).
     static func systemIcon(for fileName: String) -> NSImage {
         let ext = fileExtension(from: fileName)
-        if !ext.isEmpty, let type = UTType(filenameExtension: ext) {
-            return NSWorkspace.shared.icon(for: type)
+        let cacheKey = (ext.isEmpty ? "__default__" : ext) as NSString
+        if let cached = systemIconCache.object(forKey: cacheKey) {
+            return cached
         }
-        return NSWorkspace.shared.icon(for: .data)
+        let icon: NSImage
+        if !ext.isEmpty, let type = UTType(filenameExtension: ext) {
+            icon = NSWorkspace.shared.icon(for: type)
+        } else {
+            icon = NSWorkspace.shared.icon(for: .data)
+        }
+        systemIconCache.setObject(icon, forKey: cacheKey)
+        return icon
     }
 
     private static func fileExtension(from fileName: String) -> String {

@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 struct DownloadConfirmationView: View {
     @Bindable var item: DownloadItem
-    @Bindable var viewModel: DownloadConfirmationViewModel
+    @State private var viewModel: DownloadConfirmationViewModel
     let onConfirm: (DownloadConfirmationOptions) -> Void
     let onQueueLater: (DownloadConfirmationOptions) -> Void
     let onCancel: () -> Void
@@ -26,11 +26,11 @@ struct DownloadConfirmationView: View {
         onShowDuplicate: @escaping (UUID) -> Void
     ) {
         self.item = item
-        self.viewModel = DownloadConfirmationViewModel(
+        self._viewModel = State(initialValue: DownloadConfirmationViewModel(
             item: item,
             duplicateItem: duplicateItem,
             folders: folders
-        )
+        ))
         self.onConfirm = onConfirm
         self.onQueueLater = onQueueLater
         self.onCancel = onCancel
@@ -319,6 +319,18 @@ struct DownloadConfirmationView: View {
                 compactPicker(L10n.t(de: "Nach Download", en: "After Download"), selection: $viewModel.postDownloadAction) {
                     ForEach(PostDownloadAction.allCases, id: \.self) { action in
                         Text(action.displayName).tag(action)
+                    }
+                }
+
+                compactPicker(L10n.t(de: "Priorität", en: "Priority"), selection: $viewModel.priority) {
+                    ForEach(DownloadPriority.allCases) { p in
+                        Label(p.displayName, systemImage: p.iconName).tag(p)
+                    }
+                }
+
+                compactPicker(L10n.t(de: "Geschw.-Limit", en: "Speed Limit"), selection: $viewModel.speedLimitPreset) {
+                    ForEach(SpeedLimitPreset.allCases) { preset in
+                        Text(preset.label).tag(preset)
                     }
                 }
 

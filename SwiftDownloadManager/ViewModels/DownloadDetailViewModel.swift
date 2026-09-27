@@ -185,6 +185,17 @@ struct DownloadDetailViewModel {
     func openFile() { row.openFile() }
     func copyURL() { row.copyURL() }
 
+    var priority: DownloadPriority { row.priority }
+    var speedLimit: Int64? { row.speedLimit }
+
+    func setPriority(_ priority: DownloadPriority) {
+        row.setPriority(priority)
+    }
+
+    func setSpeedLimit(_ bytesPerSecond: Int64?) {
+        row.setSpeedLimit(bytesPerSecond)
+    }
+
     var canRevealSaveLocation: Bool {
         canRevealInFinder
             || item.saveDirectoryPath != nil

@@ -5,39 +5,37 @@ struct SelectionActionBar: View {
     let downloads: [DownloadItem]
     @Namespace private var actionGlassNamespace
 
-    private var selectedItems: [DownloadItem] {
-        downloads.filter { viewModel.selectedDownloadIDs.contains($0.id) }
+    private struct Actions {
+        var canResume = false
+        var canPause = false
+        var canCancel = false
+        var hasActions: Bool { canResume || canPause || canCancel }
+        var signature: String {
+            [canResume ? "r" : "", canPause ? "p" : "", canCancel ? "c" : ""].joined()
+        }
     }
 
-    private var canResumeAny: Bool {
-        selectedItems.contains { DownloadRowViewModel(item: $0).canResume }
-    }
-
-    private var canPauseAny: Bool {
-        selectedItems.contains { DownloadRowViewModel(item: $0).canPause }
-    }
-
-    private var canCancelAny: Bool {
-        selectedItems.contains { DownloadRowViewModel(item: $0).canCancel }
-    }
-
-    private var hasActions: Bool {
-        canResumeAny || canPauseAny || canCancelAny
-    }
-
-    private var actionLayoutSignature: String {
-        [
-            canResumeAny ? "r" : "",
-            canPauseAny ? "p" : "",
-            canCancelAny ? "c" : "",
-        ].joined()
+    private var actions: Actions {
+        guard !viewModel.selectedDownloadIDs.isEmpty else { return Actions() }
+        var result = Actions()
+        for item in downloads where viewModel.selectedDownloadIDs.contains(item.id) {
+            let row = DownloadRowViewModel(item: item)
+            if row.canResume { result.canResume = true }
+            if row.canPause { result.canPause = true }
+            if row.canCancel { result.canCancel = true }
+            if result.canResume && result.canPause && result.canCancel {
+                break
+            }
+        }
+        return result
     }
 
     var body: some View {
-        if hasActions {
+        let acts = actions
+        if acts.hasActions {
             GlassEffectContainer(spacing: 4) {
                 HStack(spacing: 6) {
-                    if canResumeAny {
+                    if acts.canResume {
                         morphingActionButton(
                             id: "resume",
                             icon: "play.fill",
@@ -46,7 +44,7 @@ struct SelectionActionBar: View {
                         )
                     }
 
-                    if canPauseAny {
+                    if acts.canPause {
                         morphingActionButton(
                             id: "pause",
                             icon: "pause.fill",
@@ -55,7 +53,7 @@ struct SelectionActionBar: View {
                         )
                     }
 
-                    if canCancelAny {
+                    if acts.canCancel {
                         morphingActionButton(
                             id: "cancel",
                             icon: "stop.fill",
@@ -67,7 +65,7 @@ struct SelectionActionBar: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
             }
-            .animation(.snappy(duration: 0.25), value: actionLayoutSignature)
+            .animation(.snappy(duration: 0.25), value: acts.signature)
             .accessibilityElement(children: .contain)
         }
     }

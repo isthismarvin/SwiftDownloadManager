@@ -42,8 +42,8 @@ struct DownloadRowViewModel {
     }
 
     var draggableFileURL: URL? {
-        guard canRevealInFinder, let url = resolvedFileURL else { return nil }
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        guard canRevealInFinder else { return nil }
+        return resolvedFileURL
     }
 
     /// Live progress comes from the tracker while downloading; the store only
@@ -236,5 +236,16 @@ struct DownloadRowViewModel {
     func copyURL() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(urlString, forType: .string)
+    }
+
+    var priority: DownloadPriority { item.priority }
+    var speedLimit: Int64? { item.customSpeedLimitBytesPerSecond }
+
+    func setPriority(_ priority: DownloadPriority) {
+        DownloadManager.shared.setPriority(priority, for: downloadID)
+    }
+
+    func setSpeedLimit(_ bytesPerSecond: Int64?) {
+        DownloadManager.shared.setSpeedLimit(bytesPerSecond: bytesPerSecond, for: downloadID)
     }
 }

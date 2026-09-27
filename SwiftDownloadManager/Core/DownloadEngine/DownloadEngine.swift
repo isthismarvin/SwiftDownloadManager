@@ -1,10 +1,11 @@
 import Foundation
+import Darwin
 import os
 
 struct SegmentInfo: Sendable {
     let index: Int
     let startOffset: Int64
-    let endOffset: Int64
+    var endOffset: Int64
     var bytesReceived: Int64
     var isCompleted: Bool
 }
@@ -24,9 +25,10 @@ enum SegmentIndexMap {
 enum DownloadEvent: Sendable {
     case progress(id: UUID, bytesReceived: Int64, bytesTotal: Int64)
     case segmentProgress(id: UUID, segmentIndex: Int, bytesReceived: Int64)
+    case segmentsUpdated(id: UUID, segments: [SegmentInfo])
     case paused(id: UUID, segments: [SegmentInfo], bytesReceived: Int64, bytesTotal: Int64)
     case completed(id: UUID, localURL: URL)
-    case failed(id: UUID, error: Error)
+    case failed(id: UUID, error: Error, segments: [SegmentInfo], bytesReceived: Int64)
     /// The server ignored a Range request and is sending the full file from
     /// byte 0. All previous progress was discarded; the item does not support
     /// resuming.
@@ -58,7 +60,11 @@ final class SpeedLimiter: @unchecked Sendable {
 
         let now = Date()
         let start = max(now, nextSlot)
-        nextSlot = start.addingTimeInterval(Double(bytesCount) / Double(limit))
+        // Cap the virtual clock to 5.0 seconds in the future so that bursts or low speed limits
+        // do not schedule writes tens of seconds out into GCD timers.
+        let horizon = now.addingTimeInterval(5.0)
+        let scheduled = start.addingTimeInterval(Double(bytesCount) / Double(limit))
+        nextSlot = min(scheduled, horizon)
         return start.timeIntervalSince(now)
     }
 }
@@ -80,7 +86,7 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         configuration.timeoutIntervalForRequest = 30.0
         configuration.waitsForConnectivity = true
         let delegateQueue = OperationQueue()
-        delegateQueue.maxConcurrentOperationCount = 1
+        delegateQueue.maxConcurrentOperationCount = 4
         delegateQueue.name = "com.swiftdownloadmanager.urlsession"
         return URLSession(configuration: configuration, delegate: self, delegateQueue: delegateQueue)
     }()
@@ -112,6 +118,7 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         /// Task-label index of the one task that survives a single-stream fallback.
         var fallbackReceivingIndex: Int?
         var sequentialWriteOffset: Int64 = 0
+        let maxConcurrentConnections: Int
         /// Chunks accepted from URLSession but not yet written to disk.
         var pendingWrites: Int = 0
         /// Bytes accepted from URLSession but not yet written to disk.
@@ -124,6 +131,7 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         var lastProgressYieldAt = Date.distantPast
         let writeQueue: DispatchQueue
         let lock = NSLock()
+        let localSpeedLimiter = SpeedLimiter()
 
         init(
             id: UUID,
@@ -132,7 +140,9 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
             fileHandle: FileHandle,
             filePath: String,
             bytesTotal: Int64,
-            segments: [SegmentInfo]
+            segments: [SegmentInfo],
+            maxConcurrentConnections: Int = 4,
+            speedLimit: Int64? = nil
         ) {
             self.id = id
             self.url = url
@@ -141,8 +151,12 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
             self.filePath = filePath
             self.bytesTotal = bytesTotal
             self.segments = SegmentIndexMap.make(from: segments)
+            self.maxConcurrentConnections = max(1, maxConcurrentConnections)
             self.writeQueue = DispatchQueue(label: "com.swiftdownloadmanager.write.\(id.uuidString)")
             self.sequentialWriteOffset = segments.map(\.bytesReceived).reduce(0, +)
+            if let speedLimit = speedLimit, speedLimit > 0 {
+                self.localSpeedLimiter.setLimit(speedLimit)
+            }
         }
 
         // MARK: - Locked helpers (caller MUST hold `lock`)
@@ -243,8 +257,15 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         super.init()
     }
 
-    func setSpeedLimit(_ bytesPerSecond: Int64) {
-        speedLimiter.setLimit(bytesPerSecond)
+    func setSpeedLimit(_ bytesPerSecond: Int64, for id: UUID? = nil) {
+        if let id = id {
+            lock.lock()
+            let active = activeDownloads[id]
+            lock.unlock()
+            active?.localSpeedLimiter.setLimit(bytesPerSecond)
+        } else {
+            speedLimiter.setLimit(bytesPerSecond)
+        }
     }
 
     func setMaxSegmentRetries(_ count: Int) {
@@ -257,7 +278,9 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         filePath: String,
         bytesTotal: Int64,
         segments: [SegmentInfo],
-        requestHeaders: [String: String] = [:]
+        requestHeaders: [String: String] = [:],
+        maxConcurrentConnections: Int = 4,
+        speedLimit: Int64? = nil
     ) {
         lock.lock()
         if activeDownloads[id] != nil {
@@ -280,25 +303,20 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
                         NSLocalizedDescriptionKey: "Cannot create download folder: \(folder.path)",
                         NSUnderlyingErrorKey: error
                     ]
-                )
+                ),
+                segments: segments,
+                bytesReceived: 0
             ))
             return
         }
 
         let fileManager = FileManager.default
         let fileURL = URL(fileURLWithPath: filePath)
-        var shouldPreallocate = true
-        if fileManager.fileExists(atPath: filePath) {
-            if let attributes = try? fileManager.attributesOfItem(atPath: filePath),
-               let fileSize = attributes[.size] as? Int64,
-               bytesTotal > 0,
-               fileSize == bytesTotal {
-                shouldPreallocate = false
-            }
-        }
+        let isResuming = segments.contains { $0.bytesReceived > 0 }
+        let fileExists = fileManager.fileExists(atPath: filePath)
 
-        if shouldPreallocate {
-            if fileManager.fileExists(atPath: filePath) {
+        if !isResuming || !fileExists {
+            if fileExists {
                 try? fileManager.removeItem(atPath: filePath)
             }
             guard fileManager.createFile(atPath: filePath, contents: nil, attributes: nil) else {
@@ -309,7 +327,9 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
                         domain: "DownloadEngine",
                         code: 3,
                         userInfo: [NSLocalizedDescriptionKey: "Cannot create file at \(filePath). Check app sandbox file permissions."]
-                    )
+                    ),
+                    segments: segments,
+                    bytesReceived: 0
                 ))
                 return
             }
@@ -320,6 +340,19 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
                     try preallocHandle.close()
                 } catch {
                     Self.logger.error("Pre-allocation failed for \(filePath, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        } else if bytesTotal > 0 {
+            // When resuming, ensure file is at least bytesTotal length if known, without removing existing data
+            if let attributes = try? fileManager.attributesOfItem(atPath: filePath),
+               let fileSize = attributes[.size] as? Int64,
+               fileSize < bytesTotal {
+                do {
+                    let preallocHandle = try FileHandle(forWritingTo: fileURL)
+                    try preallocHandle.truncate(atOffset: UInt64(bytesTotal))
+                    try preallocHandle.close()
+                } catch {
+                    Self.logger.error("Resume expansion failed for \(filePath, privacy: .public): \(error.localizedDescription, privacy: .public)")
                 }
             }
         }
@@ -338,7 +371,9 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
                         NSLocalizedDescriptionKey: "Failed to open file for writing at \(filePath)",
                         NSUnderlyingErrorKey: error
                     ]
-                )
+                ),
+                segments: segments,
+                bytesReceived: isResuming ? segments.map(\.bytesReceived).reduce(0, +) : 0
             ))
             return
         }
@@ -350,7 +385,9 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
             fileHandle: fileHandle,
             filePath: filePath,
             bytesTotal: bytesTotal,
-            segments: segments
+            segments: segments,
+            maxConcurrentConnections: maxConcurrentConnections,
+            speedLimit: speedLimit
         )
         activeDownloads[id] = active
         lock.unlock()
@@ -522,7 +559,7 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         active.pendingWrites += 1
         active.bufferedBytes += data.count
 
-        // Backpressure: stop the network when too much data is buffered in
+        // Backpressure: suspend network data tasks when too much data is buffered in
         // memory waiting for (possibly speed-limited) disk writes.
         var tasksToSuspend: [URLSessionDataTask] = []
         if active.bufferedBytes >= Self.backpressureHighWatermark {
@@ -537,25 +574,13 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
             task.suspend()
         }
 
-        let delay = speedLimiter.delayBeforeWrite(bytesCount: data.count)
+        let globalDelay = speedLimiter.delayBeforeWrite(bytesCount: data.count)
+        let localDelay = active.localSpeedLimiter.delayBeforeWrite(bytesCount: data.count)
+        let delay = max(globalDelay, localDelay)
 
         // Captures self strongly so the pendingWrites counter is always balanced.
         active.writeQueue.asyncAfter(deadline: .now() + delay) {
             self.writeData(data, to: active, segmentIndex: segmentIndex, continuation: cont)
-        }
-
-        // Hard backpressure: block the delegate callback while the write buffer
-        // is over the high watermark. Suspending the task alone is not enough —
-        // CFNetwork keeps reading ahead into process memory until the delegate
-        // stops returning. The write queue drains independently, so this loop
-        // always terminates; pause/cancel/fail also release it via `phase`.
-        while true {
-            active.lock.lock()
-            let overLimit = active.bufferedBytes >= Self.backpressureHighWatermark
-                && active.phase == .running
-            active.lock.unlock()
-            if !overLimit { break }
-            Thread.sleep(forTimeInterval: 0.02)
         }
     }
 
@@ -588,6 +613,9 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
             let nsError = error as NSError
             if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
                 active.lock.unlock()
+                let cont = continuation
+                while tryDynamicReSegmentation(active: active, continuation: cont) {}
+                maybeFinish(active: active)
                 return
             }
 
@@ -617,10 +645,68 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         active.cleanlyFinishedSegments.insert(effectiveIndex)
         active.lock.unlock()
 
+        let cont = continuation
+        while tryDynamicReSegmentation(active: active, continuation: cont) {}
         maybeFinish(active: active)
     }
 
     // MARK: - Private
+
+    @discardableResult
+    private func tryDynamicReSegmentation(
+        active: ActiveDownload,
+        continuation: AsyncStream<DownloadEvent>.Continuation?
+    ) -> Bool {
+        active.lock.lock()
+        guard active.phase == .running,
+              !active.isSingleSegmentFallback,
+              active.bytesTotal > 0 else {
+            active.lock.unlock()
+            return false
+        }
+
+        let activeTaskIndices = Set(active.tasks.keys)
+        let currentTaskCount = active.tasks.count
+        let segmentsList = active.snapshotSegmentsLocked()
+
+        guard let plan = SegmentPlanner.planDynamicSplit(
+            segments: segmentsList,
+            activeTaskIndices: activeTaskIndices,
+            maxConcurrentTasks: active.maxConcurrentConnections,
+            currentActiveTaskCount: currentTaskCount
+        ) else {
+            active.lock.unlock()
+            return false
+        }
+
+        guard var parent = active.segments[plan.parentIndex] else {
+            active.lock.unlock()
+            return false
+        }
+
+        parent.endOffset = plan.parentNewEndOffset
+        active.segments[plan.parentIndex] = parent
+
+        let child = SegmentInfo(
+            index: plan.childIndex,
+            startOffset: plan.childStartOffset,
+            endOffset: plan.childEndOffset,
+            bytesReceived: 0,
+            isCompleted: false
+        )
+        active.segments[plan.childIndex] = child
+
+        let allSegments = active.snapshotSegmentsLocked()
+        active.lock.unlock()
+
+        Self.logger.info("Dynamic re-segmentation: split segment \(plan.parentIndex) at \(plan.childStartOffset), created child segment \(plan.childIndex) [\(plan.childStartOffset)-\(plan.childEndOffset)]")
+
+        continuation?.yield(.segmentsUpdated(id: active.id, segments: allSegments))
+
+        startSegmentTask(active: active, segmentIndex: plan.childIndex)
+
+        return true
+    }
 
     private func writeData(
         _ data: Data,
@@ -664,29 +750,83 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
 
         do {
             let writeOffset: Int64
+            let dataToWrite: Data
             if active.isSingleSegmentFallback {
                 writeOffset = active.sequentialWriteOffset
+                dataToWrite = data
             } else {
                 writeOffset = segment.startOffset + segment.bytesReceived
+                if segment.endOffset != -1 {
+                    let maxAcceptable = max(0, segment.endOffset - writeOffset + 1)
+                    if Int64(data.count) > maxAcceptable {
+                        dataToWrite = data.prefix(Int(maxAcceptable))
+                    } else {
+                        dataToWrite = data
+                    }
+                } else {
+                    dataToWrite = data
+                }
             }
 
-            try active.fileHandle.seek(toOffset: UInt64(writeOffset))
-            try active.fileHandle.write(contentsOf: data)
+            if !dataToWrite.isEmpty {
+                let fd = active.fileHandle.fileDescriptor
+                let count = dataToWrite.count
+                let offset = off_t(writeOffset)
+                try dataToWrite.withUnsafeBytes { rawBuffer in
+                    guard let base = rawBuffer.baseAddress else { return }
+                    var totalWritten = 0
+                    while totalWritten < count {
+                        let written = pwrite(
+                            fd,
+                            base.advanced(by: totalWritten),
+                            count - totalWritten,
+                            offset + off_t(totalWritten)
+                        )
+                        if written < 0 {
+                            let err = errno
+                            if err == EINTR {
+                                continue
+                            }
+                            throw NSError(
+                                domain: NSPOSIXErrorDomain,
+                                code: Int(err),
+                                userInfo: [NSLocalizedDescriptionKey: "pwrite failed with errno \(err)"]
+                            )
+                        }
+                        if written == 0 {
+                            throw NSError(
+                                domain: NSPOSIXErrorDomain,
+                                code: Int(ENOSPC),
+                                userInfo: [NSLocalizedDescriptionKey: "pwrite returned 0 bytes written"]
+                            )
+                        }
+                        totalWritten += written
+                    }
+                }
+            }
 
+            let writtenCount = Int64(dataToWrite.count)
             if active.isSingleSegmentFallback {
-                active.sequentialWriteOffset += Int64(data.count)
-                segment.bytesReceived += Int64(data.count)
+                active.sequentialWriteOffset += writtenCount
+                segment.bytesReceived += writtenCount
                 if segment.endOffset != -1,
                    segment.bytesReceived >= (segment.endOffset - segment.startOffset + 1) {
                     segment.isCompleted = true
                 }
             } else {
-                segment.bytesReceived += Int64(data.count)
+                segment.bytesReceived += writtenCount
                 if segment.endOffset != -1,
                    segment.bytesReceived >= (segment.endOffset - segment.startOffset + 1) {
                     segment.isCompleted = true
                 }
             }
+
+            var taskToCancel: URLSessionDataTask?
+            if segment.isCompleted && !active.isSingleSegmentFallback {
+                taskToCancel = active.tasks.removeValue(forKey: effectiveIndex)
+                active.cleanlyFinishedSegments.insert(effectiveIndex)
+            }
+
             active.segments[effectiveIndex] = segment
 
             let bytesReceived = active.totalBytesReceivedLocked()
@@ -702,11 +842,18 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
             if shouldYieldProgress {
                 active.lastProgressYieldAt = now
             }
+            let isCompleted = segment.isCompleted
             active.lock.unlock()
+
+            taskToCancel?.cancel()
 
             if shouldYieldProgress {
                 continuation?.yield(.segmentProgress(id: active.id, segmentIndex: effectiveIndex, bytesReceived: segment.bytesReceived))
                 continuation?.yield(.progress(id: active.id, bytesReceived: bytesReceived, bytesTotal: bytesTotal))
+            }
+
+            if isCompleted {
+                while self.tryDynamicReSegmentation(active: active, continuation: continuation) {}
             }
 
             if shouldCheckCompletion {
@@ -843,6 +990,14 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         active.sequentialWriteOffset = 0
         active.cleanlyFinishedSegments.removeAll()
         active.sentRangeHeader[receivingSegmentIndex] = false
+
+        // Cleanly truncate the file back to offset 0 on the writeQueue so stale blocks from
+        // preallocation or previous segments do not corrupt the single stream.
+        active.writeQueue.async {
+            try? active.fileHandle.seek(toOffset: 0)
+            try? active.fileHandle.truncate(atOffset: 0)
+        }
+
         return active.bytesTotal
     }
 
@@ -907,6 +1062,8 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         active.phase = .failed
         let tasks = Array(active.tasks.values)
         active.tasks.removeAll()
+        let segments = active.snapshotSegmentsLocked()
+        let bytesReceived = active.totalBytesReceivedLocked()
         active.lock.unlock()
 
         lock.lock()
@@ -915,6 +1072,6 @@ final class DownloadEngine: NSObject, URLSessionDataDelegate, @unchecked Sendabl
         lock.unlock()
 
         active.shutdown(cancelTasks: tasks)
-        cont?.yield(.failed(id: active.id, error: error))
+        cont?.yield(.failed(id: active.id, error: error, segments: segments, bytesReceived: bytesReceived))
     }
 }

@@ -6,7 +6,7 @@ struct SegmentVisualizerView: View {
     var downloadCompleted: Bool = false
 
     private var sortedSegments: [DownloadSegment] {
-        segments.sorted(by: { $0.index < $1.index })
+        segments.sorted(by: { $0.startOffset < $1.startOffset })
     }
 
     private var completedCount: Int {

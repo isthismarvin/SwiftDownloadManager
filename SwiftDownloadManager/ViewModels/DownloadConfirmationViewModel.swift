@@ -24,6 +24,8 @@ final class DownloadConfirmationViewModel {
     var showAdvanced: Bool = false
     var isReprobing = false
     var selectedConflictPolicy: DestinationConflictPolicy?
+    var priority: DownloadPriority = .normal
+    var speedLimitPreset: SpeedLimitPreset = .unlimited
 
     private let downloadManager = DownloadManager.shared
 
@@ -38,6 +40,8 @@ final class DownloadConfirmationViewModel {
         self.selectedCategory = item.libraryCategory
         self.selectedFolder = item.folder
         self.selectedDestinationPath = item.saveDirectoryPath
+        self.priority = item.priority
+        self.speedLimitPreset = SpeedLimitPreset.matching(bytes: item.customSpeedLimitBytesPerSecond) ?? .unlimited
         self.postDownloadAction = item.postDownloadAction == .none
             ? settings.defaultPostDownloadAction
             : item.postDownloadAction
@@ -185,7 +189,9 @@ final class DownloadConfirmationViewModel {
             scheduledStartAt: useSchedule ? scheduleDate : nil,
             startWhenOnWiFi: startWhenOnWiFi,
             useBrowserHeaders: useBrowserHeaders,
-            conflictPolicyOverride: selectedConflictPolicy
+            conflictPolicyOverride: selectedConflictPolicy,
+            priority: priority,
+            customSpeedLimitBytesPerSecond: speedLimitPreset.rawValue > 0 ? speedLimitPreset.rawValue : nil
         )
     }
 

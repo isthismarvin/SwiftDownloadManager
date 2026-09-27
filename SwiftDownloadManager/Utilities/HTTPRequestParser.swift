@@ -8,7 +8,15 @@ enum HTTPRequestParser {
     struct ParsedRequest {
         let method: String
         let path: String
+        let headers: [String: String]
         let body: Data
+
+        init(method: String, path: String, headers: [String: String] = [:], body: Data = Data()) {
+            self.method = method
+            self.path = path
+            self.headers = headers
+            self.body = body
+        }
     }
 
     /// Returns nil while the request is still incomplete, or when the request is malformed.
@@ -25,10 +33,15 @@ enum HTTPRequestParser {
         guard requestLineParts.count >= 2 else { return nil }
 
         var contentLength = 0
+        var headers: [String: String] = [:]
         for line in lines.dropFirst() {
             let parts = line.split(separator: ":", maxSplits: 1)
-            if parts.count == 2, parts[0].trimmingCharacters(in: .whitespaces).lowercased() == "content-length" {
-                contentLength = Int(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
+            guard parts.count == 2 else { continue }
+            let key = parts[0].trimmingCharacters(in: .whitespaces).lowercased()
+            let value = parts[1].trimmingCharacters(in: .whitespaces)
+            headers[key] = value
+            if key == "content-length" {
+                contentLength = Int(value) ?? 0
             }
         }
 
@@ -41,6 +54,6 @@ enum HTTPRequestParser {
         let method = String(requestLineParts[0]).uppercased()
         let path = String(requestLineParts[1])
         let body = data.subdata(in: bodyStart..<data.index(bodyStart, offsetBy: contentLength))
-        return ParsedRequest(method: method, path: path, body: body)
+        return ParsedRequest(method: method, path: path, headers: headers, body: body)
     }
 }

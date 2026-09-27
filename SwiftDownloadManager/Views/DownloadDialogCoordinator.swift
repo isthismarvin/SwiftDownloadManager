@@ -13,27 +13,19 @@ struct DownloadDialogCoordinator: ViewModifier {
         content
             .onAppear(perform: refreshAll)
             .onChange(of: downloads.map(\.id)) { _, _ in refreshAll() }
-            .onChange(of: completionQueueToken) { _, _ in
+            .onChange(of: downloadManager.completionDialogQueue) { _, _ in
                 viewModel.refreshCompletionDialog(from: downloads)
                 presentActivePanelIfNeeded()
             }
             .onChange(of: viewModel.pendingConfirmation?.id) { _, _ in
                 presentActivePanelIfNeeded()
             }
-            .onChange(of: confirmationBatchToken) { _, _ in
+            .onChange(of: viewModel.pendingConfirmationBatch?.map(\.id)) { _, _ in
                 presentActivePanelIfNeeded()
             }
             .onChange(of: viewModel.pendingCompletion?.id) { _, _ in
                 presentActivePanelIfNeeded()
             }
-    }
-
-    private var completionQueueToken: String {
-        downloadManager.completionDialogQueue.map(\.uuidString).joined(separator: ",")
-    }
-
-    private var confirmationBatchToken: String {
-        viewModel.pendingConfirmationBatch?.map(\.id.uuidString).joined(separator: ",") ?? ""
     }
 
     private func refreshAll() {

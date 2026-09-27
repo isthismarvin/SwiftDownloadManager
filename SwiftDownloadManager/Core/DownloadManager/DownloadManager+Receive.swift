@@ -47,6 +47,41 @@ extension DownloadManager {
         processQueue()
     }
 
+    @discardableResult
+    func addBatchDownloads(
+        urls: [URL],
+        preferredSegmentsCount: Int? = nil,
+        saveDirectory: URL? = nil,
+        category: LibraryCategory? = nil,
+        folder: DownloadFolder? = nil,
+        startImmediately: Bool = true
+    ) -> [UUID] {
+        let segments = preferredSegmentsCount ?? AppSettings.shared.defaultSegmentsCount
+        var ids: [UUID] = []
+        for url in urls {
+            if let item = insertDownloadItem(
+                url: url,
+                preferredSegmentsCount: segments,
+                saveDirectory: saveDirectory,
+                category: category,
+                folder: folder,
+                initialStatus: .queued
+            ) {
+                if !startImmediately {
+                    item.holdInQueue = true
+                    item.status = .paused
+                }
+                ids.append(item.id)
+            }
+        }
+        saveNow()
+        logger.info("Added batch of \(ids.count) downloads (startImmediately: \(startImmediately))")
+        if startImmediately {
+            processQueue()
+        }
+        return ids
+    }
+
     /// External sources (extension, drag & drop, paste) — confirmation required
     /// unless the host matches an auto-start domain rule.
     @discardableResult
@@ -186,6 +221,8 @@ extension DownloadManager {
         item.startWhenOnWiFi = options.startWhenOnWiFi
         item.holdInQueue = !options.startImmediately
         item.probeErrorMessage = nil
+        item.priority = options.priority
+        item.customSpeedLimitBytesPerSecond = options.customSpeedLimitBytesPerSecond
 
         if let override = options.conflictPolicyOverride {
             conflictPolicyOverrides[id] = override
@@ -449,7 +486,7 @@ extension DownloadManager {
                 item.postDownloadAction = AppSettings.shared.defaultPostDownloadAction
             }
         }
-        if AppSettings.shared.holdNewDownloadsInQueue {
+        if AppSettings.shared.addNewDownloadsPaused {
             item.holdInQueue = true
         }
     }

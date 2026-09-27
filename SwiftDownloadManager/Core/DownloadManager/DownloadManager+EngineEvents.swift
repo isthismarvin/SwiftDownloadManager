@@ -22,9 +22,10 @@ extension DownloadManager {
         let eventID: UUID = switch event {
         case .progress(let id, _, _): id
         case .segmentProgress(let id, _, _): id
+        case .segmentsUpdated(let id, _): id
         case .paused(let id, _, _, _): id
         case .completed(let id, _): id
-        case .failed(let id, _): id
+        case .failed(let id, _, _, _): id
         case .restartedAsSingleStream(let id, _): id
         }
 
@@ -33,7 +34,11 @@ extension DownloadManager {
         switch event {
         case .progress(let id, let bytesReceived, let bytesTotal):
             noteProgress(for: id)
-            if let item = fetchItem(id: id) {
+            let item = activeDownloadItems[id] ?? fetchItem(id: id)
+            if let item {
+                if activeDownloadItems[id] == nil {
+                    activeDownloadItems[id] = item
+                }
                 // Live values go to the in-memory tracker; SwiftData is only
                 // touched at flush cadence to avoid store churn per chunk.
                 progressCache[id] = (bytesReceived, bytesTotal)
@@ -51,9 +56,45 @@ extension DownloadManager {
             noteProgress(for: id)
             segmentProgressCache[id, default: [:]][segmentIndex] = bytesReceived
 
+        case .segmentsUpdated(let id, let segmentInfos):
+            let item = activeDownloadItems[id] ?? fetchItem(id: id)
+            if let item {
+                if activeDownloadItems[id] == nil {
+                    activeDownloadItems[id] = item
+                }
+                var existingByIndex: [Int: DownloadSegment] = [:]
+                for seg in item.segments {
+                    existingByIndex[seg.index] = seg
+                }
+                for info in segmentInfos {
+                    if let existing = existingByIndex[info.index] {
+                        existing.startOffset = info.startOffset
+                        existing.endOffset = info.endOffset
+                        existing.bytesReceived = info.bytesReceived
+                        existing.isCompleted = info.isCompleted
+                    } else {
+                        let newSegment = DownloadSegment(
+                            index: info.index,
+                            startOffset: info.startOffset,
+                            endOffset: info.endOffset,
+                            bytesReceived: info.bytesReceived,
+                            isCompleted: info.isCompleted
+                        )
+                        newSegment.downloadItem = item
+                        item.segments.append(newSegment)
+                    }
+                }
+                metricsTracker(for: id).update(
+                    bytesReceived: item.bytesReceived,
+                    bytesTotal: item.bytesTotal,
+                    connections: activeConnectionCount(for: item)
+                )
+            }
+
         case .paused(let id, let segments, let bytesReceived, let bytesTotal):
             sessions.endDownloading(id)
             releaseScopedDirectory(for: id)
+            activeDownloadItems.removeValue(forKey: id)
             clearProgressCache(for: id)
             if let item = fetchItem(id: id) {
                 item.status = .paused
@@ -61,10 +102,26 @@ extension DownloadManager {
                 if bytesTotal > 0 {
                     item.bytesTotal = bytesTotal
                 }
+                var existingByIndex: [Int: DownloadSegment] = [:]
+                for seg in item.segments {
+                    existingByIndex[seg.index] = seg
+                }
                 for segmentInfo in segments {
-                    if let segment = item.segments.first(where: { $0.index == segmentInfo.index }) {
+                    if let segment = existingByIndex[segmentInfo.index] {
+                        segment.startOffset = segmentInfo.startOffset
+                        segment.endOffset = segmentInfo.endOffset
                         segment.bytesReceived = segmentInfo.bytesReceived
                         segment.isCompleted = segmentInfo.isCompleted
+                    } else {
+                        let newSegment = DownloadSegment(
+                            index: segmentInfo.index,
+                            startOffset: segmentInfo.startOffset,
+                            endOffset: segmentInfo.endOffset,
+                            bytesReceived: segmentInfo.bytesReceived,
+                            isCompleted: segmentInfo.isCompleted
+                        )
+                        newSegment.downloadItem = item
+                        item.segments.append(newSegment)
                     }
                 }
             }
@@ -74,6 +131,7 @@ extension DownloadManager {
         case .completed(let id, let localURL):
             sessions.endDownloading(id)
             releaseScopedDirectory(for: id)
+            activeDownloadItems.removeValue(forKey: id)
             let cachedProgress = progressCache[id]
             clearProgressCache(for: id)
             if let item = fetchItem(id: id) {
@@ -88,6 +146,19 @@ extension DownloadManager {
                 attachFileLocation(to: item, fileURL: localURL)
                 recordIntelligenceAfterCompletion(item)
                 recordHistory(for: item, outcome: .completed)
+
+                let targetID = id
+                let targetFileURL = localURL
+                Task.detached(priority: .utility) {
+                    if let sha = try? await FileChecksumService.computeSHA256(for: targetFileURL) {
+                        await MainActor.run {
+                            if let completedItem = DownloadManager.shared.fetchItem(id: targetID) {
+                                completedItem.sha256Checksum = sha
+                                DownloadManager.shared.saveNow()
+                            }
+                        }
+                    }
+                }
                 metricsTracker(for: id).update(
                     bytesReceived: item.bytesReceived,
                     bytesTotal: item.bytesTotal,
@@ -102,18 +173,47 @@ extension DownloadManager {
             metricsTrackers.removeValue(forKey: id)
             saveNow()
             processQueue()
+            checkQueueCompletionAction()
 
-        case .failed(let id, let error):
+        case .failed(let id, let error, let segments, let bytesReceived):
             sessions.endDownloading(id)
             releaseScopedDirectory(for: id)
-            clearProgressCache(for: id)
+            activeDownloadItems.removeValue(forKey: id)
             if let item = fetchItem(id: id) {
                 item.status = .failed
                 item.errorMessage = error.localizedDescription
+                if bytesReceived > 0 {
+                    item.bytesReceived = bytesReceived
+                }
+                var existingByIndex: [Int: DownloadSegment] = [:]
+                for seg in item.segments {
+                    existingByIndex[seg.index] = seg
+                }
+                for segmentInfo in segments {
+                    if let segment = existingByIndex[segmentInfo.index] {
+                        segment.startOffset = segmentInfo.startOffset
+                        segment.endOffset = segmentInfo.endOffset
+                        segment.bytesReceived = segmentInfo.bytesReceived
+                        segment.isCompleted = segmentInfo.isCompleted
+                    } else {
+                        let newSegment = DownloadSegment(
+                            index: segmentInfo.index,
+                            startOffset: segmentInfo.startOffset,
+                            endOffset: segmentInfo.endOffset,
+                            bytesReceived: segmentInfo.bytesReceived,
+                            isCompleted: segmentInfo.isCompleted
+                        )
+                        newSegment.downloadItem = item
+                        item.segments.append(newSegment)
+                    }
+                }
+                clearProgressCache(for: id)
                 persistSpeedHistory(for: item, tracker: metricsTracker(for: id))
                 metricsTracker(for: id).reset()
                 NotificationService.postDownloadFailed(fileName: item.fileName, message: error.localizedDescription)
                 logger.error("Download failed \(item.fileName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            } else {
+                clearProgressCache(for: id)
             }
             metricsTrackers.removeValue(forKey: id)
             saveNow()
@@ -152,5 +252,18 @@ extension DownloadManager {
         }
         let active = item.segments.filter { !$0.isCompleted }.count
         return max(active, 1)
+    }
+
+    func checkQueueCompletionAction() {
+        guard AppSettings.shared.onQueueCompleteAction != .doNothing else { return }
+        guard sessions.activeCount == 0 else { return }
+        guard let modelContext else { return }
+        var descriptor = FetchDescriptor<DownloadItem>()
+        descriptor.predicate = #Predicate<DownloadItem> { $0.statusRaw == "queued" || $0.statusRaw == "downloading" }
+        descriptor.fetchLimit = 1
+        let remaining = (try? modelContext.fetch(descriptor)) ?? []
+        if remaining.isEmpty {
+            SystemPowerHelper.executeOnQueueCompleteAction()
+        }
     }
 }

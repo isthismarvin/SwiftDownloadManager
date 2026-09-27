@@ -73,8 +73,8 @@ struct SettingsView: View {
             NetworkSettingsPanel()
         case .integration:
             IntegrationSettingsPanel()
-        case .intelligence:
-            IntelligenceSettingsPanel()
+        case .automation:
+            AutomationSettingsPanel()
         case .notifications:
             NotificationsSettingsPanel()
         case .hotkeys:

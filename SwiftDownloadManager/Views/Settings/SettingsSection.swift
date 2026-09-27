@@ -5,7 +5,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     case downloads
     case network
     case integration
-    case intelligence
+    case automation
     case notifications
     case hotkeys
     case advanced
@@ -19,7 +19,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .downloads: return L10n.t(de: "Downloads", en: "Downloads")
         case .network: return L10n.t(de: "Netzwerk", en: "Network")
         case .integration: return L10n.t(de: "Integration", en: "Integration")
-        case .intelligence: return L10n.t(de: "Intelligenz", en: "Intelligence")
+        case .automation: return L10n.t(de: "Automatisierung", en: "Automation")
         case .notifications: return L10n.t(de: "Benachrichtigungen", en: "Notifications")
         case .hotkeys: return L10n.t(de: "Tastenkürzel", en: "Hotkeys")
         case .advanced: return L10n.t(de: "Erweitert", en: "Advanced")
@@ -33,7 +33,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .downloads: return "arrow.down.circle"
         case .network: return "network"
         case .integration: return "puzzlepiece.extension"
-        case .intelligence: return "sparkles"
+        case .automation: return "wand.and.stars"
         case .notifications: return "bell"
         case .hotkeys: return "keyboard"
         case .advanced: return "wrench.and.screwdriver"
@@ -45,35 +45,46 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general:
             return L10n.t(
-                de: "Sprache, Standardordner, Sortierung und Tabellen-Spalten.",
-                en: "Language, default folder, sorting, and table columns."
+                de: "Sprache, Standardordner, Start- und Dialogverhalten.",
+                en: "Language, default folder, startup and dialog behavior."
             )
         case .downloads:
-            return L10n.t(de: "Warteschlange, Verbindungen und Dateikonflikte.", en: "Queue, connections, and file conflicts.")
+            return L10n.t(
+                de: "Warteschlange, Beschleunigung und Dateikonflikte.",
+                en: "Queue, acceleration, and file conflicts."
+            )
         case .network:
-            return L10n.t(de: "Speed-Limit, WLAN und Netzwerk-Optionen.", en: "Speed limit, Wi-Fi, and network options.")
+            return L10n.t(
+                de: "Geschwindigkeits-Limit, WLAN und Bandbreitenverteilung.",
+                en: "Speed limit, Wi-Fi, and bandwidth sharing."
+            )
         case .integration:
             return L10n.t(
-                de: "Chrome Extension, Domain-Regeln und gelernte Vorschläge.",
-                en: "Chrome extension, domain rules, and learned suggestions."
+                de: "Browser-Integration, Domain-Regeln und Zwischenablage.",
+                en: "Browser integration, domain rules, and clipboard."
             )
-        case .intelligence:
+        case .automation:
             return L10n.t(
-                de: "Lernen, Vorschläge, Hänger-Erkennung und smarte Filter.",
-                en: "Learning, suggestions, stall detection, and smart filters."
+                de: "Automatische Vorschläge ohne globalen Master-Schalter.",
+                en: "Automatic suggestions without a global master switch."
             )
         case .notifications:
             return L10n.t(
-                de: "Systemhinweise, Hänger, Warteschlange und Dock-Badge.",
-                en: "System notifications, stalls, queue backlog, and Dock badge."
+                de: "Systemhinweise, Warteschlange und Dock-Badge.",
+                en: "System notifications, queue, and Dock badge."
             )
         case .hotkeys:
             return L10n.t(
                 de: "Menü-Tastenkürzel anpassen und Konflikte vermeiden.",
                 en: "Customize menu keyboard shortcuts and avoid conflicts."
             )
-        case .advanced: return L10n.t(de: "Verlauf, Diagnose und Zurücksetzen.", en: "History, diagnostics, and reset.")
-        case .about: return L10n.t(de: "App-Version und Informationen.", en: "App version and information.")
+        case .advanced:
+            return L10n.t(
+                de: "Verlauf, Diagnose, Zurücksetzen und Motor-Tuning.",
+                en: "History, diagnostics, reset, and engine tuning."
+            )
+        case .about:
+            return L10n.t(de: "App-Version und Informationen.", en: "App version and information.")
         }
     }
 }

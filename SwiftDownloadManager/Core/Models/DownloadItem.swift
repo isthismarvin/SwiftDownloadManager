@@ -29,6 +29,20 @@ final class DownloadItem: Identifiable {
     var referrerURLString: String?
     var holdInQueue: Bool = false
     var startWhenOnWiFi: Bool = false
+    var sha256Checksum: String?
+    var expectedChecksum: String?
+    var customSpeedLimitBytesPerSecond: Int64?
+    var priorityRaw: String?
+
+    var priority: DownloadPriority {
+        get {
+            guard let priorityRaw else { return .normal }
+            return DownloadPriority(rawValue: priorityRaw) ?? .normal
+        }
+        set {
+            priorityRaw = newValue == .normal ? nil : newValue.rawValue
+        }
+    }
 
     @Relationship(deleteRule: .cascade, inverse: \DownloadSegment.downloadItem)
     var segments: [DownloadSegment] = []
@@ -105,7 +119,11 @@ final class DownloadItem: Identifiable {
         speedHistoryJSON: String? = nil,
         referrerURLString: String? = nil,
         holdInQueue: Bool = false,
-        startWhenOnWiFi: Bool = false
+        startWhenOnWiFi: Bool = false,
+        sha256Checksum: String? = nil,
+        expectedChecksum: String? = nil,
+        customSpeedLimitBytesPerSecond: Int64? = nil,
+        priority: DownloadPriority = .normal
     ) {
         self.id = id
         self.urlString = urlString
@@ -134,5 +152,9 @@ final class DownloadItem: Identifiable {
         self.referrerURLString = referrerURLString
         self.holdInQueue = holdInQueue
         self.startWhenOnWiFi = startWhenOnWiFi
+        self.sha256Checksum = sha256Checksum
+        self.expectedChecksum = expectedChecksum
+        self.customSpeedLimitBytesPerSecond = customSpeedLimitBytesPerSecond
+        self.priorityRaw = priority == .normal ? nil : priority.rawValue
     }
 }

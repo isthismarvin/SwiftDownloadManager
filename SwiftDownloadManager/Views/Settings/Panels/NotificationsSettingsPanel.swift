@@ -35,8 +35,8 @@ struct NotificationsSettingsPanel: View {
                                 systemImage: "hourglass",
                                 isOn: $appSettings.notifyOnStall,
                                 help: L10n.t(
-                                    de: "Benachrichtigung, wenn ein Download zu lange keinen Fortschritt macht. Erkennung unter Intelligenz → Download-Engine.",
-                                    en: "Notification when a download stops making progress. Detection is under Intelligence → Download Engine."
+                                    de: "Benachrichtigung, wenn ein Download zu lange keinen Fortschritt macht.",
+                                    en: "Notification when a download stops making progress."
                                 )
                             )
                             Divider().padding(.leading, 28)
@@ -52,7 +52,7 @@ struct NotificationsSettingsPanel: View {
                             if appSettings.notifyOnQueueBacklog {
                                 Divider().padding(.leading, 28)
                                 SettingsStepperRow(
-                                    label: L10n.t(de: "Warteschlangen-Schwellwert", en: "Queue backlog threshold"),
+                                    label: L10n.t(de: "Schwellwert", en: "Threshold"),
                                     value: $appSettings.queueBacklogThreshold,
                                     range: 3...20,
                                     help: L10n.t(

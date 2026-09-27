@@ -13,11 +13,9 @@ enum DownloadIntelligence {
             )
         }
 
-        guard settings.smartFeaturesEnabled else { return }
-
         guard let host = DomainRuleStore.host(from: item.urlString) else { return }
 
-        if settings.rememberFolderPerHost,
+        if settings.rememberFolderPerDomain,
            options.saveDirectory == nil,
            let learned = DownloadLearningStore.suggestedSaveDirectory(for: host) {
             options.saveDirectory = learned

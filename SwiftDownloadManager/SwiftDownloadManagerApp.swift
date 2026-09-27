@@ -283,6 +283,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         LocalHTTPServer.shared.stop()
+        ClipboardMonitor.shared.stop()
 
         let manager = DownloadManager.shared
         guard manager.hasActiveDownloads else {

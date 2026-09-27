@@ -13,9 +13,14 @@ enum DestinationConflictPolicy: String, Codable, Sendable {
     case ask
 }
 
+enum DownloadSource {
+    case paste
+}
+
 final class AppSettings {
     static let shared = AppSettings()
     var conflictPolicy: DestinationConflictPolicy = .rename
+    var clipboardMonitoringEnabled: Bool = true
 
     private init() {}
 }
@@ -36,11 +41,16 @@ enum L10n {
 
 final class DownloadManager {
     static let shared = DownloadManager()
+    var modelContext: Any? = "context"
 
     private init() {}
 
     func effectiveConflictPolicy(for downloadID: UUID) -> DestinationConflictPolicy {
         AppSettings.shared.conflictPolicy
+    }
+
+    func receiveDownload(url: URL, source: DownloadSource = .paste) -> Any? {
+        nil
     }
 }
 

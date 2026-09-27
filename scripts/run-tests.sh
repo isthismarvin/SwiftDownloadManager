@@ -15,6 +15,10 @@ swiftc \
   SwiftDownloadManager/Core/Settings/SegmentCountTier.swift \
   SwiftDownloadManager/Utilities/DomainRuleStore.swift \
   SwiftDownloadManager/Utilities/DestinationConflictResolver.swift \
+  SwiftDownloadManager/Utilities/ClipboardMonitor.swift \
+  SwiftDownloadManager/Utilities/BatchURLParser.swift \
+  SwiftDownloadManager/Utilities/FileChecksumService.swift \
+  SwiftDownloadManager/Core/Models/DownloadPriority.swift \
   tests/TestStubs.swift \
   tests/DomainRuleStoreTests.swift \
   tests/ChaosTests.swift \

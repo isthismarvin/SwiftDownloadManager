@@ -52,39 +52,50 @@ Swift Download Manager replaces the browser download bar with a proper queue on 
 
 ## Features
 
-**Downloads**
-- Multi-segment HTTP downloads for higher throughput
+**Downloads & Acceleration**
+- Multi-segment HTTP downloads for maximum throughput
+- Dynamic segment allocation and real-time segment progress visualizer
+- **Batch & Pattern Downloader**: download sequences with wildcard syntax (`[01-20]`, `[a-z]`) or extract URLs from multi-line text and HTML
+- **Priority Queue**: assign High, Normal, or Low priorities to downloads to control queue order
+- **Speed Limiting**: per-download and global virtual-clock speed limiters (e.g. 1 MB/s, 5 MB/s, custom)
 - Pause, resume, schedule, and limit concurrent downloads
-- Live speed chart, ETA, and per-segment progress in the inspector
+- Live speed chart, ETA, and transfer metrics in the inspector
 - Optional confirm-before-start and summary-after-finish dialogs
-- Rename, overwrite, or ask on filename conflicts
+- Smart filename conflict handling: rename, overwrite, or ask
+
+**Integrity & Security**
+- **Automatic Checksum Verification**: streamed SHA-256 and MD5 integrity calculation with instant copy
+- Security-scoped macOS bookmarks preserving access to external folders across restarts
+- Hardened runtime and App Sandbox compliant
+
+**Automation & Scheduling**
+- **Scheduled Time Windows**: define start and stop hours for automated queue execution
+- **Power Management**: automatically put Mac to sleep or quit the application when downloads complete
+- Wi‑Fi-only start enforcement
 
 **Organization**
 - Sidebar filters: queue, scheduled, active, completed, failed, and smart filters (missing file, today, large files)
 - Library categories and custom folders
-- Searchable download history
+- Searchable download history with retention controls
 
 **Integration**
 - **Chrome extension** — send links and capture browser downloads to the app (`127.0.0.1:6789`)
 - Domain rules: auto-start, always ask, or block per host
-- Drag & drop URLs, clipboard paste, and `swiftdownloadmanager://` deep links
-- Global speed limits and optional Wi‑Fi-only starts
-
-**macOS native**
-- Security-scoped bookmarks for custom save folders
-- Notifications, Dock badge, German & English UI
+- Drag & drop URLs, clipboard monitor, and `swiftdownloadmanager://` deep links
+- Dock icon live transfer badge and native notifications
+- Fully localized in English and German
 
 ## Installation
 
 **[→ Go to Releases](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest)**
 
-App and Chrome extension share the same version (**v2.0.2**).
+App and Chrome extension share the same version (**v2.2.0**).
 
 | Asset | Download |
 |-------|----------|
-| macOS app (recommended) | [SwiftDownloadManager-macOS-v2.0.2.dmg](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.0.2.dmg) |
-| macOS app (zip) | [SwiftDownloadManager-macOS-v2.0.2.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.0.2.zip) |
-| Chrome extension | [SwiftDownloadManager-ChromeExtension-v2.0.2.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.0.2.zip) |
+| macOS app (recommended) | [SwiftDownloadManager-macOS-v2.2.0.dmg](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.2.0.dmg) |
+| macOS app (zip) | [SwiftDownloadManager-macOS-v2.2.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.2.0.zip) |
+| Chrome extension | [SwiftDownloadManager-ChromeExtension-v2.2.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.2.0.zip) |
 
 ### macOS app
 
@@ -103,7 +114,7 @@ Requires **macOS 26.0** (Tahoe) or later.
 
 The companion extension talks to the app over localhost. **The app must be running.**
 
-1. Download and unzip [SwiftDownloadManager-ChromeExtension-v2.0.2.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.0.2.zip).
+1. Download and unzip [SwiftDownloadManager-ChromeExtension-v2.2.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.2.0.zip).
 2. Launch Swift Download Manager.
 3. In Chrome: `chrome://extensions` → **Developer mode** → **Load unpacked** → select the unzipped folder.
 4. Pin the extension. A green **✓** badge means the app is connected.

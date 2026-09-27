@@ -12,8 +12,27 @@ struct DownloadTableRowView: View {
 
     @State private var isHovered = false
 
-    private var viewModel: DownloadRowViewModel {
-        DownloadRowViewModel(item: item)
+    private let viewModel: DownloadRowViewModel
+
+    init(
+        item: DownloadItem,
+        layout: TableColumnLayout,
+        visibleColumns: [DownloadTableColumn],
+        isSelected: Bool,
+        folders: [DownloadFolder],
+        onSelect: @escaping () -> Void,
+        onDelete: @escaping () -> Void,
+        onMoveToFolder: @escaping (DownloadFolder?) -> Void
+    ) {
+        self.item = item
+        self.layout = layout
+        self.visibleColumns = visibleColumns
+        self.isSelected = isSelected
+        self.folders = folders
+        self.onSelect = onSelect
+        self.onDelete = onDelete
+        self.onMoveToFolder = onMoveToFolder
+        self.viewModel = DownloadRowViewModel(item: item)
     }
 
     var body: some View {
@@ -127,6 +146,34 @@ struct DownloadTableRowView: View {
 
         Button(L10n.t(de: "URL kopieren", en: "Copy URL"), systemImage: "doc.on.doc") {
             viewModel.copyURL()
+        }
+
+        Menu(L10n.t(de: "Priorität", en: "Priority"), systemImage: viewModel.priority.iconName) {
+            ForEach(DownloadPriority.allCases) { p in
+                Button(action: { viewModel.setPriority(p) }) {
+                    if viewModel.priority == p {
+                        Label("\(p.displayName) ✓", systemImage: p.iconName)
+                    } else {
+                        Label(p.displayName, systemImage: p.iconName)
+                    }
+                }
+            }
+        }
+
+        Menu(L10n.t(de: "Geschw.-Limit", en: "Speed Limit"), systemImage: "speedometer") {
+            ForEach(SpeedLimitPreset.allCases) { preset in
+                Button(action: {
+                    viewModel.setSpeedLimit(preset.rawValue > 0 ? preset.rawValue : nil)
+                }) {
+                    let isSelected = (viewModel.speedLimit == nil && preset == .unlimited)
+                        || (viewModel.speedLimit == preset.rawValue)
+                    if isSelected {
+                        Text("\(preset.label) ✓")
+                    } else {
+                        Text(preset.label)
+                    }
+                }
+            }
         }
 
         if !folders.isEmpty {

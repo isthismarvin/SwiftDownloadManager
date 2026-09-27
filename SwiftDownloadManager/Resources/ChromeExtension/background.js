@@ -171,7 +171,10 @@ async function sendToApp(url, filename, { referrer, silentOnSuccess = false } = 
   try {
     const response = await fetch(`${SERVER_BASE}/add`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-SDM-Handshake": "extension",
+      },
       body: JSON.stringify(body),
     });
 

@@ -21,17 +21,10 @@ extension DownloadManager {
     func applyFairBandwidthSharing() {
         let settings = AppSettings.shared
         let baseLimit = settings.effectiveSpeedLimitBytesPerSecond
-        guard settings.smartFeaturesEnabled, settings.fairBandwidthSharing else {
-            engine.setSpeedLimit(baseLimit)
-            return
-        }
-
-        let active = max(sessions.activeCount, 1)
-        if baseLimit > 0, active > 1 {
-            engine.setSpeedLimit(max(baseLimit / Int64(active), 100_000))
-        } else {
-            engine.setSpeedLimit(baseLimit)
-        }
+        // The engine's SpeedLimiter is shared globally across all downloads and segments;
+        // setting baseLimit directly ensures the aggregate throughput respects the user's limit
+        // without dividing the global pipe and starving multiple active downloads.
+        engine.setSpeedLimit(baseLimit)
     }
 
     func findContentDuplicate(

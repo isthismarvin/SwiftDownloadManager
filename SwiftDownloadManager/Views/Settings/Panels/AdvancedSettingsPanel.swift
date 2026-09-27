@@ -6,6 +6,7 @@ struct AdvancedSettingsPanel: View {
     @Bindable private var appSettings = AppSettings.shared
     @State private var recentDestinations: [String] = []
     @State private var showResetConfirmation = false
+    @State private var showEngineTuning = false
 
     private let downloadManager = DownloadManager.shared
 
@@ -39,7 +40,7 @@ struct AdvancedSettingsPanel: View {
                     }
                 }
 
-                SettingsPanelSection(title: L10n.t(de: "Zuletzt verwendete Zielordner", en: "Recently Used Destination Folders")) {
+                SettingsPanelSection(title: L10n.t(de: "Zuletzt verwendete Zielordner", en: "Recently Used Destinations")) {
                     RecentDestinationsList(paths: $recentDestinations) {
                         RecentDestinationsStore.clearAll()
                         reloadRecentDestinations()
@@ -53,6 +54,75 @@ struct AdvancedSettingsPanel: View {
                         onReset: { showResetConfirmation = true }
                     )
                 }
+
+                // MARK: - Engine Tuning (collapsible)
+
+                DisclosureGroup(
+                    isExpanded: $showEngineTuning,
+                    content: {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SettingsRoundedCard {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    SettingsStepperRow(
+                                        label: L10n.t(de: "Standard-Verbindungen", en: "Default connections"),
+                                        value: $appSettings.defaultSegmentsCount,
+                                        range: 1...8,
+                                        help: L10n.t(
+                                            de: "Verbindungen pro Download, wenn keine größenbasierte Regel greift.",
+                                            en: "Connections per download when no size-based rule applies."
+                                        )
+                                    )
+                                    Divider()
+                                    SettingsStepperRow(
+                                        label: L10n.t(de: "Probe-Timeout (Sekunden)", en: "Probe timeout (seconds)"),
+                                        value: $appSettings.probeTimeoutSeconds,
+                                        range: 5...120,
+                                        step: 5,
+                                        unit: "s",
+                                        help: L10n.t(
+                                            de: "Maximale Wartezeit beim Ermitteln von Dateigröße und Metadaten.",
+                                            en: "Maximum wait time when determining file size and metadata."
+                                        )
+                                    )
+                                    Divider()
+                                    SettingsStepperRow(
+                                        label: L10n.t(de: "Segment-Wiederholungen", en: "Segment retries"),
+                                        value: $appSettings.segmentRetries,
+                                        range: 1...10,
+                                        help: L10n.t(
+                                            de: "Wie oft ein fehlgeschlagenes Segment erneut versucht wird.",
+                                            en: "How many times a failed segment is retried."
+                                        )
+                                    )
+                                    if appSettings.stallDetectionEnabled {
+                                        Divider()
+                                        SettingsStepperRow(
+                                            label: L10n.t(de: "Hänger-Timeout (Sekunden)", en: "Stall timeout (seconds)"),
+                                            value: $appSettings.stallTimeoutSeconds,
+                                            range: 30...600,
+                                            step: 30,
+                                            help: L10n.t(
+                                                de: "Zeit ohne Fortschritt, nach der ein Download als hängend gilt.",
+                                                en: "Time without progress before a download is considered stalled."
+                                            )
+                                        )
+                                    }
+                                    Divider()
+                                    SegmentCountBySizeSettingsSection()
+                                }
+                            }
+                        }
+                        .padding(.top, 8)
+                    },
+                    label: {
+                        Label(
+                            L10n.t(de: "Motor-Tuning", en: "Engine Tuning"),
+                            systemImage: "engine.combustion"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    }
+                )
             }
             .settingsPanelStack()
             .onAppear(perform: reloadRecentDestinations)

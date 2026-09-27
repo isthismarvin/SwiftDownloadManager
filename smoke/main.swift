@@ -57,12 +57,12 @@ Task {
         case .completed(_, let localURL):
             print("COMPLETED \(localURL.path)")
             done.signal()
-        case .failed(_, let error):
+        case .failed(_, let error, _, _):
             print("FAILED \(error.localizedDescription)")
             exit(1)
         case .restartedAsSingleStream(_, let bytesTotal):
             print("RESTARTED AS SINGLE STREAM (total \(bytesTotal))")
-        case .segmentProgress:
+        case .segmentProgress, .segmentsUpdated:
             break
         }
     }

@@ -3,7 +3,6 @@ import SwiftData
 
 struct DownloadListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Bindable private var downloadManager = DownloadManager.shared
     @Bindable private var appSettings = AppSettings.shared
     @Bindable var viewModel: DownloadListViewModel
     @Query(sort: \DownloadItem.createdAt, order: .reverse) private var downloads: [DownloadItem]
@@ -114,10 +113,10 @@ struct DownloadListView: View {
             viewModel.pruneSelection(to: Set(ids))
         }
         .onAppear {
-            downloadManager.setup(modelContext: modelContext)
+            DownloadManager.shared.setup(modelContext: modelContext)
         }
         .downloadDialogCoordinator(
-            downloadManager: downloadManager,
+            downloadManager: DownloadManager.shared,
             viewModel: viewModel,
             downloads: downloads,
             folders: folders

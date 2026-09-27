@@ -26,9 +26,7 @@ extension DownloadManager {
     }
 
     func releaseScopedDirectory(for id: UUID) {
-        if let url = scopedDirectories.removeValue(forKey: id) {
-            url.stopAccessingSecurityScopedResource()
-        }
+        sandboxService.releaseScopedDirectory(for: id)
     }
 
     /// Removes the partially downloaded file of a non-completed item. The engine

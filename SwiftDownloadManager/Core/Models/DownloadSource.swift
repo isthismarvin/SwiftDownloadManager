@@ -58,4 +58,6 @@ struct DownloadConfirmationOptions: Sendable {
     var startWhenOnWiFi: Bool = false
     var useBrowserHeaders: Bool = true
     var conflictPolicyOverride: DestinationConflictPolicy?
+    var priority: DownloadPriority = .normal
+    var customSpeedLimitBytesPerSecond: Int64? = nil
 }

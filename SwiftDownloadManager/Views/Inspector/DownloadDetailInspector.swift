@@ -5,8 +5,17 @@ struct DownloadDetailInspector: View {
     @Binding var isCollapsed: Bool
     @Binding var expandedHeight: CGFloat
 
-    private var viewModel: DownloadDetailViewModel {
-        DownloadDetailViewModel(item: item)
+    private let viewModel: DownloadDetailViewModel
+
+    init(
+        item: DownloadItem,
+        isCollapsed: Binding<Bool>,
+        expandedHeight: Binding<CGFloat>
+    ) {
+        self.item = item
+        self._isCollapsed = isCollapsed
+        self._expandedHeight = expandedHeight
+        self.viewModel = DownloadDetailViewModel(item: item)
     }
 
     var body: some View {
@@ -283,6 +292,9 @@ struct DownloadDetailInspector: View {
                     actionHelp: L10n.t(de: "Im Finder anzeigen", en: "Reveal in Finder")
                 )
                 urlOverviewRow
+                if viewModel.status == .completed {
+                    checksumOverviewRow
+                }
                 overviewRow(
                     icon: "tray.and.arrow.down",
                     label: L10n.t(de: "Quelle", en: "Source"),
@@ -293,6 +305,10 @@ struct DownloadDetailInspector: View {
                     label: L10n.t(de: "Fortsetzbar", en: "Resumable"),
                     value: viewModel.supportsResumeText
                 )
+                priorityOverviewRow
+                if viewModel.status != .completed {
+                    speedLimitOverviewRow
+                }
             }
 
             if let error = viewModel.errorMessage {
@@ -310,6 +326,46 @@ struct DownloadDetailInspector: View {
             Spacer(minLength: 0)
         }
         .frame(maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var checksumOverviewRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: "checkmark.shield")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(item.sha256Checksum != nil ? Color.green : Color.secondary)
+                .frame(width: 12)
+
+            Text("SHA-256")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .frame(width: 52, alignment: .leading)
+
+            if let sha = item.sha256Checksum {
+                Text(sha)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .help(sha)
+
+                Button(action: {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(sha, forType: .string)
+                }) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 9))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help(L10n.t(de: "Prüfsumme kopieren", en: "Copy checksum"))
+            } else {
+                Text(L10n.t(de: "Wird berechnet…", en: "Computing…"))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 
     private var urlOverviewRow: some View {
@@ -338,6 +394,86 @@ struct DownloadDetailInspector: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help(L10n.t(de: "URL kopieren", en: "Copy URL"))
+        }
+    }
+
+    private var priorityOverviewRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: viewModel.priority.iconName)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(viewModel.priority.tintColor)
+                .frame(width: 12)
+
+            Text(L10n.t(de: "Priorität", en: "Priority"))
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .frame(width: 52, alignment: .leading)
+
+            Menu {
+                ForEach(DownloadPriority.allCases) { p in
+                    Button(action: { viewModel.setPriority(p) }) {
+                        if viewModel.priority == p {
+                            Label("\(p.displayName) ✓", systemImage: p.iconName)
+                        } else {
+                            Label(p.displayName, systemImage: p.iconName)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Text(viewModel.priority.displayName)
+                        .font(.system(size: 11, weight: .medium))
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 8))
+                }
+                .foregroundStyle(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+
+            Spacer()
+        }
+    }
+
+    private var speedLimitOverviewRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: "speedometer")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(viewModel.speedLimit != nil ? Color.orange : Color.secondary)
+                .frame(width: 12)
+
+            Text(L10n.t(de: "Limit", en: "Limit"))
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .frame(width: 52, alignment: .leading)
+
+            Menu {
+                ForEach(SpeedLimitPreset.allCases) { preset in
+                    Button(action: {
+                        viewModel.setSpeedLimit(preset.rawValue > 0 ? preset.rawValue : nil)
+                    }) {
+                        let isSelected = (viewModel.speedLimit == nil && preset == .unlimited)
+                            || (viewModel.speedLimit == preset.rawValue)
+                        if isSelected {
+                            Text("\(preset.label) ✓")
+                        } else {
+                            Text(preset.label)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Text(SpeedLimitPreset.format(bytesPerSecond: viewModel.speedLimit))
+                        .font(.system(size: 11, weight: .medium))
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 8))
+                }
+                .foregroundStyle(viewModel.speedLimit != nil ? Color.primary : Color.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+
+            Spacer()
         }
     }
 
@@ -553,7 +689,7 @@ struct DownloadDetailInspector: View {
                 .foregroundStyle(.secondary)
 
                 VStack(spacing: 4) {
-                    ForEach(Array(viewModel.segments.sorted(by: { $0.index < $1.index }).prefix(6))) { segment in
+                    ForEach(Array(viewModel.segments.sorted(by: { $0.startOffset < $1.startOffset }).prefix(6))) { segment in
                         compactSegmentRow(segment)
                     }
                 }

@@ -284,6 +284,26 @@ final class DownloadListViewModel {
         )
     }
 
+    func addBatchDownloads(
+        urls: [URL],
+        preferredSegmentsCount: Int = 4,
+        saveDirectory: URL? = nil,
+        category: LibraryCategory? = nil,
+        folder: DownloadFolder? = nil,
+        startImmediately: Bool = true
+    ) {
+        guard !urls.isEmpty else { return }
+        isShowingAddSheet = false
+        downloadManager.addBatchDownloads(
+            urls: urls,
+            preferredSegmentsCount: preferredSegmentsCount,
+            saveDirectory: saveDirectory,
+            category: category,
+            folder: folder,
+            startImmediately: startImmediately
+        )
+    }
+
     func createFolder() {
         let name = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }

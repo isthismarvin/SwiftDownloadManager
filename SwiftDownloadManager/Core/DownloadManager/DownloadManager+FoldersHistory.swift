@@ -83,7 +83,12 @@ extension DownloadManager {
                     && !sessions.shouldIgnoreEvents(for: $0.id)
                     && !sessions.isActive($0.id)
             }
-            .sorted { $0.createdAt < $1.createdAt }
+            .sorted { lhs, rhs in
+                if lhs.priority.sortWeight != rhs.priority.sortWeight {
+                    return lhs.priority.sortWeight > rhs.priority.sortWeight
+                }
+                return lhs.createdAt < rhs.createdAt
+            }
 
         let slots = AppSettings.shared.maxConcurrentDownloads - activeCount
         for item in queuedItems.prefix(slots) {
@@ -133,6 +138,11 @@ extension DownloadManager {
             let left = etaSortValue(for: lhs)
             let right = etaSortValue(for: rhs)
             if left != right { return left < right }
+            return lhs.createdAt < rhs.createdAt
+        case .priority:
+            let left = lhs.priority.sortWeight
+            let right = rhs.priority.sortWeight
+            if left != right { return left > right }
             return lhs.createdAt < rhs.createdAt
         }
     }

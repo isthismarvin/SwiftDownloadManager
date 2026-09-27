@@ -17,6 +17,22 @@ enum DestinationConflictPolicy: String, CaseIterable, Identifiable, Codable, Sen
     }
 }
 
+enum OnQueueCompleteAction: String, CaseIterable, Identifiable, Codable, Sendable {
+    case doNothing
+    case sleepMac
+    case quitApp
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .doNothing: return L10n.t(de: "Nichts tun", en: "Do nothing")
+        case .sleepMac: return L10n.t(de: "Mac in Ruhezustand versetzen", en: "Put Mac to sleep")
+        case .quitApp: return L10n.t(de: "App beenden", en: "Quit application")
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class AppSettings {
@@ -28,7 +44,7 @@ final class AppSettings {
         static let showConfirmationDialog = "showConfirmationDialog"
         static let pauseDownloadsOnQuit = "pauseDownloadsOnQuit"
         static let defaultSegmentsCount = "defaultSegmentsCount"
-        static let holdNewDownloadsInQueue = "holdNewDownloadsInQueue"
+        static let addNewDownloadsPaused = "holdNewDownloadsInQueue"
         static let defaultPostDownloadAction = "defaultPostDownloadAction"
         static let conflictPolicy = "destinationConflictPolicy"
         static let useCustomSpeedLimit = "useCustomSpeedLimit"
@@ -54,9 +70,8 @@ final class AppSettings {
         static let startInBackground = "startInBackground"
         static let showMenuBarIcon = "showMenuBarIcon"
         static let hideDockWhenInBackground = "hideDockWhenInBackground"
-        static let smartFeaturesEnabled = "smartFeaturesEnabled"
-        static let rememberFolderPerHost = "rememberFolderPerHost"
-        static let detectContentDuplicates = "detectContentDuplicates"
+        static let rememberFolderPerDomain = "rememberFolderPerHost"
+        static let detectDuplicateDownloads = "detectContentDuplicates"
         static let stallDetectionEnabled = "stallDetectionEnabled"
         static let stallTimeoutSeconds = "stallTimeoutSeconds"
         static let stallAutoRetry = "stallAutoRetry"
@@ -71,6 +86,21 @@ final class AppSettings {
         static let queueBacklogThreshold = "queueBacklogThreshold"
         static let largeFileThresholdGB = "largeFileThresholdGB"
         static let showSmartSidebarFilters = "showSmartSidebarFilters"
+        static let accelerationLevel = "accelerationLevel"
+        static let bandwidthSharingMode = "bandwidthSharingMode"
+        static let autoRetryEnabled = "autoRetryEnabled"
+        static let safariEnabled = "safariEnabled"
+        static let chromeEnabled = "chromeEnabled"
+        static let firefoxEnabled = "firefoxEnabled"
+        static let edgeEnabled = "edgeEnabled"
+        static let clipboardMonitoringEnabled = "clipboardMonitoringEnabled"
+        static let rememberFileTypeActions = "rememberFileTypeActions"
+        static let schedulerEnabled = "schedulerEnabled"
+        static let schedulerStartHour = "schedulerStartHour"
+        static let schedulerStartMinute = "schedulerStartMinute"
+        static let schedulerStopHour = "schedulerStopHour"
+        static let schedulerStopMinute = "schedulerStopMinute"
+        static let onQueueCompleteAction = "onQueueCompleteAction"
     }
 
     var appLanguage: AppLanguage = {
@@ -105,12 +135,19 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(pauseDownloadsOnQuit, forKey: Key.pauseDownloadsOnQuit) }
     }
 
-    var defaultSegmentsCount: Int {
-        didSet { UserDefaults.standard.set(defaultSegmentsCount, forKey: Key.defaultSegmentsCount) }
+    var accelerationLevel: AccelerationLevel {
+        didSet {
+            UserDefaults.standard.set(accelerationLevel.rawValue, forKey: Key.accelerationLevel)
+            applyAccelerationLevel()
+        }
     }
 
-    var holdNewDownloadsInQueue: Bool {
-        didSet { UserDefaults.standard.set(holdNewDownloadsInQueue, forKey: Key.holdNewDownloadsInQueue) }
+    var addNewDownloadsPaused: Bool {
+        didSet { UserDefaults.standard.set(addNewDownloadsPaused, forKey: Key.addNewDownloadsPaused) }
+    }
+
+    var defaultSegmentsCount: Int {
+        didSet { UserDefaults.standard.set(defaultSegmentsCount, forKey: Key.defaultSegmentsCount) }
     }
 
     var defaultPostDownloadAction: PostDownloadAction {
@@ -149,6 +186,25 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(defaultStartWhenOnWiFi, forKey: Key.defaultStartWhenOnWiFi) }
     }
 
+    var bandwidthSharingMode: BandwidthSharingMode {
+        didSet {
+            UserDefaults.standard.set(bandwidthSharingMode.rawValue, forKey: Key.bandwidthSharingMode)
+            applyEffectiveSpeedLimit()
+        }
+    }
+
+    var autoRetryEnabled: Bool {
+        didSet { UserDefaults.standard.set(autoRetryEnabled, forKey: Key.autoRetryEnabled) }
+    }
+
+    var stallDetectionEnabled: Bool {
+        didSet { UserDefaults.standard.set(stallDetectionEnabled, forKey: Key.stallDetectionEnabled) }
+    }
+
+    var stallTimeoutSeconds: Int {
+        didSet { UserDefaults.standard.set(stallTimeoutSeconds, forKey: Key.stallTimeoutSeconds) }
+    }
+
     var probeTimeoutSeconds: Int {
         didSet { UserDefaults.standard.set(probeTimeoutSeconds, forKey: Key.probeTimeoutSeconds) }
     }
@@ -160,9 +216,77 @@ final class AppSettings {
         }
     }
 
+    // MARK: - Integration
+
+    var safariEnabled: Bool {
+        didSet { UserDefaults.standard.set(safariEnabled, forKey: Key.safariEnabled) }
+    }
+
+    var chromeEnabled: Bool {
+        didSet { UserDefaults.standard.set(chromeEnabled, forKey: Key.chromeEnabled) }
+    }
+
+    var firefoxEnabled: Bool {
+        didSet { UserDefaults.standard.set(firefoxEnabled, forKey: Key.firefoxEnabled) }
+    }
+
+    var edgeEnabled: Bool {
+        didSet { UserDefaults.standard.set(edgeEnabled, forKey: Key.edgeEnabled) }
+    }
+
     var sendBrowserHeadersByDefault: Bool {
         didSet { UserDefaults.standard.set(sendBrowserHeadersByDefault, forKey: Key.sendBrowserHeadersByDefault) }
     }
+
+    var clipboardMonitoringEnabled: Bool {
+        didSet { UserDefaults.standard.set(clipboardMonitoringEnabled, forKey: Key.clipboardMonitoringEnabled) }
+    }
+
+    // MARK: - Automation
+
+    var rememberFolderPerDomain: Bool {
+        didSet { UserDefaults.standard.set(rememberFolderPerDomain, forKey: Key.rememberFolderPerDomain) }
+    }
+
+    var rememberFileTypeActions: Bool {
+        didSet { UserDefaults.standard.set(rememberFileTypeActions, forKey: Key.rememberFileTypeActions) }
+    }
+
+    var detectDuplicateDownloads: Bool {
+        didSet { UserDefaults.standard.set(detectDuplicateDownloads, forKey: Key.detectDuplicateDownloads) }
+    }
+
+    var smartPostDownloadActions: Bool {
+        didSet { UserDefaults.standard.set(smartPostDownloadActions, forKey: Key.smartPostDownloadActions) }
+    }
+
+    // MARK: - Scheduler & Power Management
+
+    var schedulerEnabled: Bool {
+        didSet { UserDefaults.standard.set(schedulerEnabled, forKey: Key.schedulerEnabled) }
+    }
+
+    var schedulerStartHour: Int {
+        didSet { UserDefaults.standard.set(schedulerStartHour, forKey: Key.schedulerStartHour) }
+    }
+
+    var schedulerStartMinute: Int {
+        didSet { UserDefaults.standard.set(schedulerStartMinute, forKey: Key.schedulerStartMinute) }
+    }
+
+    var schedulerStopHour: Int {
+        didSet { UserDefaults.standard.set(schedulerStopHour, forKey: Key.schedulerStopHour) }
+    }
+
+    var schedulerStopMinute: Int {
+        didSet { UserDefaults.standard.set(schedulerStopMinute, forKey: Key.schedulerStopMinute) }
+    }
+
+    var onQueueCompleteAction: OnQueueCompleteAction {
+        didSet { UserDefaults.standard.set(onQueueCompleteAction.rawValue, forKey: Key.onQueueCompleteAction) }
+    }
+
+    // MARK: - Notifications
 
     var notifyOnComplete: Bool {
         didSet { UserDefaults.standard.set(notifyOnComplete, forKey: Key.notifyOnComplete) }
@@ -170,6 +294,18 @@ final class AppSettings {
 
     var notifyOnFailed: Bool {
         didSet { UserDefaults.standard.set(notifyOnFailed, forKey: Key.notifyOnFailed) }
+    }
+
+    var notifyOnStall: Bool {
+        didSet { UserDefaults.standard.set(notifyOnStall, forKey: Key.notifyOnStall) }
+    }
+
+    var notifyOnQueueBacklog: Bool {
+        didSet { UserDefaults.standard.set(notifyOnQueueBacklog, forKey: Key.notifyOnQueueBacklog) }
+    }
+
+    var queueBacklogThreshold: Int {
+        didSet { UserDefaults.standard.set(queueBacklogThreshold, forKey: Key.queueBacklogThreshold) }
     }
 
     var playNotificationSound: Bool {
@@ -180,12 +316,16 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(showDockBadge, forKey: Key.showDockBadge) }
     }
 
+    // MARK: - History
+
     var historyRetentionDays: Int {
         didSet {
             UserDefaults.standard.set(historyRetentionDays, forKey: Key.historyRetentionDays)
             DownloadManager.shared.pruneHistory(olderThanDays: historyRetentionDays)
         }
     }
+
+    // MARK: - UI State (not in Settings panels, but persisted)
 
     var inspectorCollapsed: Bool {
         didSet { UserDefaults.standard.set(inspectorCollapsed, forKey: Key.inspectorCollapsed) }
@@ -240,133 +380,23 @@ final class AppSettings {
         }
     }
 
-    func moveTableColumn(from source: String, to target: String) {
-        guard source != target else { return }
-        var order = DownloadTableColumn.normalizedOrder(
-            tableColumnOrder.compactMap(DownloadTableColumn.init(rawValue:))
-        ).map(\.rawValue)
-        guard let fromIndex = order.firstIndex(of: source),
-              let toIndex = order.firstIndex(of: target) else { return }
-        order.remove(at: fromIndex)
-        order.insert(source, at: toIndex)
-        tableColumnOrder = order
+    var showSmartSidebarFilters: Bool {
+        didSet { UserDefaults.standard.set(showSmartSidebarFilters, forKey: Key.showSmartSidebarFilters) }
     }
 
-    func moveTableColumn(_ column: DownloadTableColumn, direction: Int) {
-        guard column.isReorderable else { return }
-        var order = DownloadTableColumn.normalizedOrder(
-            tableColumnOrder.compactMap(DownloadTableColumn.init(rawValue:))
-        )
-        guard let index = order.firstIndex(of: column) else { return }
-        let newIndex = index + direction
-        guard order.indices.contains(newIndex) else { return }
-        order.swapAt(index, newIndex)
-        tableColumnOrder = order.map(\.rawValue)
+    var showInspectorInsights: Bool {
+        didSet { UserDefaults.standard.set(showInspectorInsights, forKey: Key.showInspectorInsights) }
     }
 
-    func resetTableColumnOrder() {
-        tableColumnOrder = DownloadTableColumn.defaultDataColumnOrder.map(\.rawValue)
+    var largeFileThresholdGB: Int {
+        didSet { UserDefaults.standard.set(largeFileThresholdGB, forKey: Key.largeFileThresholdGB) }
     }
 
-    private static func loadTableColumnOrder() -> [String] {
-        guard let raw = UserDefaults.standard.string(forKey: Key.tableColumnOrder), !raw.isEmpty else {
-            return DownloadTableColumn.defaultDataColumnOrder.map(\.rawValue)
-        }
-        let stored = raw.split(separator: ",").map(String.init)
-        return DownloadTableColumn.normalizedOrder(
-            stored.compactMap(DownloadTableColumn.init(rawValue:))
-        ).map(\.rawValue)
-    }
-
-    var maxConcurrentDownloads: Int = {
-        let val = UserDefaults.standard.integer(forKey: Key.maxConcurrentDownloads)
-        return val == 0 ? 2 : val
-    }() {
-        didSet {
-            UserDefaults.standard.set(maxConcurrentDownloads, forKey: Key.maxConcurrentDownloads)
-            DownloadManager.shared.processQueue()
-        }
-    }
-
-    var globalSpeedLimitBytesPerSecond: Int64 = {
-        UserDefaults.standard.value(forKey: Key.globalSpeedLimitBytesPerSecond) as? Int64 ?? 0
-    }() {
-        didSet {
-            UserDefaults.standard.set(globalSpeedLimitBytesPerSecond, forKey: Key.globalSpeedLimitBytesPerSecond)
-            if !useCustomSpeedLimit {
-                applyEffectiveSpeedLimit()
-            }
-        }
-    }
-
-    var launchAtLogin: Bool = {
-        UserDefaults.standard.object(forKey: Key.launchAtLogin) as? Bool ?? true
-    }() {
-        didSet {
-            UserDefaults.standard.set(launchAtLogin, forKey: Key.launchAtLogin)
-            LaunchAtLoginManager.setEnabled(launchAtLogin)
-        }
-    }
-
-    var startInBackground: Bool = {
-        UserDefaults.standard.object(forKey: Key.startInBackground) as? Bool ?? true
-    }() {
-        didSet { UserDefaults.standard.set(startInBackground, forKey: Key.startInBackground) }
-    }
-
-    var showMenuBarIcon: Bool {
-        didSet {
-            UserDefaults.standard.set(showMenuBarIcon, forKey: Key.showMenuBarIcon)
-            if !showMenuBarIcon { hideDockWhenInBackground = false }
-            BackgroundAppManager.shared.applyActivationPolicy()
-        }
-    }
-
-    var hideDockWhenInBackground: Bool {
-        didSet {
-            UserDefaults.standard.set(hideDockWhenInBackground, forKey: Key.hideDockWhenInBackground)
-            BackgroundAppManager.shared.applyActivationPolicy()
-        }
-    }
-
-    // MARK: - Intelligence
-
-    var smartFeaturesEnabled: Bool {
-        didSet { UserDefaults.standard.set(smartFeaturesEnabled, forKey: Key.smartFeaturesEnabled) }
-    }
-
-    var rememberFolderPerHost: Bool {
-        didSet { UserDefaults.standard.set(rememberFolderPerHost, forKey: Key.rememberFolderPerHost) }
-    }
-
-    var detectContentDuplicates: Bool {
-        didSet { UserDefaults.standard.set(detectContentDuplicates, forKey: Key.detectContentDuplicates) }
-    }
-
-    var stallDetectionEnabled: Bool {
-        didSet { UserDefaults.standard.set(stallDetectionEnabled, forKey: Key.stallDetectionEnabled) }
-    }
-
-    var stallTimeoutSeconds: Int {
-        didSet { UserDefaults.standard.set(stallTimeoutSeconds, forKey: Key.stallTimeoutSeconds) }
-    }
-
-    var stallAutoRetry: Bool {
-        didSet { UserDefaults.standard.set(stallAutoRetry, forKey: Key.stallAutoRetry) }
-    }
-
-    var notifyOnStall: Bool {
-        didSet { UserDefaults.standard.set(notifyOnStall, forKey: Key.notifyOnStall) }
-    }
-
-    var adaptiveSegmentCount: Bool {
-        didSet { UserDefaults.standard.set(adaptiveSegmentCount, forKey: Key.adaptiveSegmentCount) }
-    }
+    // MARK: - Engine internals (persisted, not in Settings UI)
+    // These are used by the download engine but configured via accelerationLevel.
 
     var sizeBasedSegmentCountEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(sizeBasedSegmentCountEnabled, forKey: Key.sizeBasedSegmentCountEnabled)
-        }
+        didSet { UserDefaults.standard.set(sizeBasedSegmentCountEnabled, forKey: Key.sizeBasedSegmentCountEnabled) }
     }
 
     var segmentCountTiers: [SegmentCountTier] {
@@ -380,39 +410,44 @@ final class AppSettings {
         }
     }
 
+    var adaptiveSegmentCount: Bool {
+        didSet { UserDefaults.standard.set(adaptiveSegmentCount, forKey: Key.adaptiveSegmentCount) }
+    }
+
+    // MARK: - Legacy aliases (mapped to old UserDefaults keys)
+
+    var holdNewDownloadsInQueue: Bool {
+        get { addNewDownloadsPaused }
+        set { addNewDownloadsPaused = newValue }
+    }
+
     var fairBandwidthSharing: Bool {
-        didSet {
-            UserDefaults.standard.set(fairBandwidthSharing, forKey: Key.fairBandwidthSharing)
-            applyEffectiveSpeedLimit()
-        }
+        get { bandwidthSharingMode == .fair }
+        set { bandwidthSharingMode = newValue ? .fair : .auto }
     }
 
-    var smartPostDownloadActions: Bool {
-        didSet { UserDefaults.standard.set(smartPostDownloadActions, forKey: Key.smartPostDownloadActions) }
+    var smartFeaturesEnabled: Bool {
+        get { true }
+        set {}
     }
 
-    var showInspectorInsights: Bool {
-        didSet { UserDefaults.standard.set(showInspectorInsights, forKey: Key.showInspectorInsights) }
+    var rememberFolderPerHost: Bool {
+        get { rememberFolderPerDomain }
+        set { rememberFolderPerDomain = newValue }
     }
 
-    var notifyOnQueueBacklog: Bool {
-        didSet { UserDefaults.standard.set(notifyOnQueueBacklog, forKey: Key.notifyOnQueueBacklog) }
+    var detectContentDuplicates: Bool {
+        get { detectDuplicateDownloads }
+        set { detectDuplicateDownloads = newValue }
     }
 
-    var queueBacklogThreshold: Int {
-        didSet { UserDefaults.standard.set(queueBacklogThreshold, forKey: Key.queueBacklogThreshold) }
-    }
-
-    var largeFileThresholdGB: Int {
-        didSet { UserDefaults.standard.set(largeFileThresholdGB, forKey: Key.largeFileThresholdGB) }
-    }
-
-    var showSmartSidebarFilters: Bool {
-        didSet { UserDefaults.standard.set(showSmartSidebarFilters, forKey: Key.showSmartSidebarFilters) }
+    var stallAutoRetry: Bool {
+        get { autoRetryEnabled }
+        set { autoRetryEnabled = newValue }
     }
 
     func recommendedSegmentsCount(for bytesTotal: Int64, fallback: Int? = nil) -> Int {
-        let fallbackCount = fallback ?? defaultSegmentsCount
+        let fallbackCount = fallback ?? accelerationLevel.segmentCount
         guard sizeBasedSegmentCountEnabled else { return fallbackCount }
         return SegmentCountPolicy.connections(
             for: bytesTotal,
@@ -469,6 +504,18 @@ final class AppSettings {
         segmentCountTiers = SegmentCountPolicy.normalizedTiers(tiers)
     }
 
+    private func applyAccelerationLevel() {
+        let count = accelerationLevel.segmentCount
+        defaultSegmentsCount = count
+        let rawConnections = min(count, 8)
+        let rawTiers = SegmentCountPolicy.defaultTiers
+        var tiers = SegmentCountPolicy.normalizedTiers(rawTiers)
+        for i in tiers.indices {
+            tiers[i].connections = min(tiers[i].connections, rawConnections)
+        }
+        segmentCountTiers = SegmentCountPolicy.normalizedTiers(tiers)
+    }
+
     private static func loadSegmentCountTiers() -> [SegmentCountTier] {
         guard let data = UserDefaults.standard.data(forKey: Key.segmentCountTiersJSON),
               let tiers = try? JSONDecoder().decode([SegmentCountTier].self, from: data) else {
@@ -488,9 +535,11 @@ final class AppSettings {
         showCompletionDialog = defaults.object(forKey: Key.showCompletionDialog) as? Bool ?? true
         showConfirmationDialog = defaults.object(forKey: Key.showConfirmationDialog) as? Bool ?? true
         pauseDownloadsOnQuit = defaults.object(forKey: Key.pauseDownloadsOnQuit) as? Bool ?? true
+        let accelLevel = AccelerationLevel(rawValue: defaults.string(forKey: Key.accelerationLevel) ?? "") ?? .balanced
+        accelerationLevel = accelLevel
+        addNewDownloadsPaused = defaults.bool(forKey: Key.addNewDownloadsPaused)
         let segments = defaults.integer(forKey: Key.defaultSegmentsCount)
-        defaultSegmentsCount = segments == 0 ? 4 : segments
-        holdNewDownloadsInQueue = defaults.bool(forKey: Key.holdNewDownloadsInQueue)
+        defaultSegmentsCount = segments == 0 ? accelLevel.segmentCount : segments
         defaultPostDownloadAction = PostDownloadAction(
             rawValue: defaults.string(forKey: Key.defaultPostDownloadAction) ?? ""
         ) ?? .none
@@ -500,13 +549,43 @@ final class AppSettings {
         useCustomSpeedLimit = defaults.bool(forKey: Key.useCustomSpeedLimit)
         customSpeedLimitBytesPerSecond = defaults.object(forKey: Key.customSpeedLimitBytesPerSecond) as? Int64 ?? 3_000_000
         defaultStartWhenOnWiFi = defaults.bool(forKey: Key.defaultStartWhenOnWiFi)
+        let bwRaw = defaults.string(forKey: Key.bandwidthSharingMode) ?? ""
+        bandwidthSharingMode = BandwidthSharingMode(rawValue: bwRaw) ?? .auto
+        autoRetryEnabled = defaults.object(forKey: Key.autoRetryEnabled) as? Bool ?? true
+        let stallTimeout = defaults.integer(forKey: Key.stallTimeoutSeconds)
+        stallTimeoutSeconds = stallTimeout == 0 ? 120 : stallTimeout
+        stallDetectionEnabled = defaults.object(forKey: Key.stallDetectionEnabled) as? Bool ?? true
         let timeout = defaults.integer(forKey: Key.probeTimeoutSeconds)
         probeTimeoutSeconds = timeout == 0 ? 30 : timeout
         let retries = defaults.integer(forKey: Key.segmentRetries)
         segmentRetries = retries == 0 ? 3 : retries
+        safariEnabled = defaults.object(forKey: Key.safariEnabled) as? Bool ?? true
+        chromeEnabled = defaults.object(forKey: Key.chromeEnabled) as? Bool ?? true
+        firefoxEnabled = defaults.object(forKey: Key.firefoxEnabled) as? Bool ?? false
+        edgeEnabled = defaults.object(forKey: Key.edgeEnabled) as? Bool ?? false
         sendBrowserHeadersByDefault = defaults.object(forKey: Key.sendBrowserHeadersByDefault) as? Bool ?? true
+        clipboardMonitoringEnabled = defaults.object(forKey: Key.clipboardMonitoringEnabled) as? Bool ?? false
+        rememberFolderPerDomain = defaults.object(forKey: Key.rememberFolderPerDomain) as? Bool ?? true
+        rememberFileTypeActions = defaults.object(forKey: Key.rememberFileTypeActions) as? Bool ?? true
+        detectDuplicateDownloads = defaults.object(forKey: Key.detectDuplicateDownloads) as? Bool ?? true
+        smartPostDownloadActions = defaults.object(forKey: Key.smartPostDownloadActions) as? Bool ?? true
+        schedulerEnabled = defaults.bool(forKey: Key.schedulerEnabled)
+        schedulerStartHour = defaults.object(forKey: Key.schedulerStartHour) as? Int ?? 2
+        schedulerStartMinute = defaults.object(forKey: Key.schedulerStartMinute) as? Int ?? 0
+        schedulerStopHour = defaults.object(forKey: Key.schedulerStopHour) as? Int ?? 6
+        schedulerStopMinute = defaults.object(forKey: Key.schedulerStopMinute) as? Int ?? 0
+        if let rawAction = defaults.string(forKey: Key.onQueueCompleteAction),
+           let action = OnQueueCompleteAction(rawValue: rawAction) {
+            onQueueCompleteAction = action
+        } else {
+            onQueueCompleteAction = .doNothing
+        }
         notifyOnComplete = defaults.object(forKey: Key.notifyOnComplete) as? Bool ?? true
         notifyOnFailed = defaults.object(forKey: Key.notifyOnFailed) as? Bool ?? true
+        notifyOnStall = defaults.object(forKey: Key.notifyOnStall) as? Bool ?? true
+        notifyOnQueueBacklog = defaults.object(forKey: Key.notifyOnQueueBacklog) as? Bool ?? false
+        let backlog = defaults.integer(forKey: Key.queueBacklogThreshold)
+        queueBacklogThreshold = backlog == 0 ? 5 : backlog
         playNotificationSound = defaults.object(forKey: Key.playNotificationSound) as? Bool ?? true
         showDockBadge = defaults.object(forKey: Key.showDockBadge) as? Bool ?? true
         let retention = defaults.integer(forKey: Key.historyRetentionDays)
@@ -526,14 +605,10 @@ final class AppSettings {
         startInBackground = defaults.object(forKey: Key.startInBackground) as? Bool ?? true
         showMenuBarIcon = defaults.object(forKey: Key.showMenuBarIcon) as? Bool ?? true
         hideDockWhenInBackground = defaults.object(forKey: Key.hideDockWhenInBackground) as? Bool ?? true
-        smartFeaturesEnabled = defaults.object(forKey: Key.smartFeaturesEnabled) as? Bool ?? true
-        rememberFolderPerHost = defaults.object(forKey: Key.rememberFolderPerHost) as? Bool ?? true
-        detectContentDuplicates = defaults.object(forKey: Key.detectContentDuplicates) as? Bool ?? true
-        stallDetectionEnabled = defaults.object(forKey: Key.stallDetectionEnabled) as? Bool ?? true
-        let stallTimeout = defaults.integer(forKey: Key.stallTimeoutSeconds)
-        stallTimeoutSeconds = stallTimeout == 0 ? 120 : stallTimeout
-        stallAutoRetry = defaults.object(forKey: Key.stallAutoRetry) as? Bool ?? true
-        notifyOnStall = defaults.object(forKey: Key.notifyOnStall) as? Bool ?? true
+        showSmartSidebarFilters = defaults.object(forKey: Key.showSmartSidebarFilters) as? Bool ?? true
+        showInspectorInsights = defaults.object(forKey: Key.showInspectorInsights) as? Bool ?? true
+        let largeGB = defaults.integer(forKey: Key.largeFileThresholdGB)
+        largeFileThresholdGB = largeGB == 0 ? 1 : largeGB
         let legacyAdaptive = defaults.object(forKey: Key.adaptiveSegmentCount) as? Bool ?? true
         adaptiveSegmentCount = legacyAdaptive
         if defaults.object(forKey: Key.sizeBasedSegmentCountEnabled) == nil {
@@ -542,16 +617,20 @@ final class AppSettings {
             sizeBasedSegmentCountEnabled = defaults.bool(forKey: Key.sizeBasedSegmentCountEnabled)
         }
         segmentCountTiers = Self.loadSegmentCountTiers()
-        fairBandwidthSharing = defaults.object(forKey: Key.fairBandwidthSharing) as? Bool ?? true
-        smartPostDownloadActions = defaults.object(forKey: Key.smartPostDownloadActions) as? Bool ?? true
-        showInspectorInsights = defaults.object(forKey: Key.showInspectorInsights) as? Bool ?? true
-        notifyOnQueueBacklog = defaults.object(forKey: Key.notifyOnQueueBacklog) as? Bool ?? false
-        let backlog = defaults.integer(forKey: Key.queueBacklogThreshold)
-        queueBacklogThreshold = backlog == 0 ? 5 : backlog
-        let largeGB = defaults.integer(forKey: Key.largeFileThresholdGB)
-        largeFileThresholdGB = largeGB == 0 ? 1 : largeGB
-        showSmartSidebarFilters = defaults.object(forKey: Key.showSmartSidebarFilters) as? Bool ?? true
         sanitizePollutedGlobalSpeedLimit()
+        ensureMigrationFromOldKeys()
+    }
+
+    private func ensureMigrationFromOldKeys() {
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: Key.autoRetryEnabled) == nil {
+            autoRetryEnabled = defaults.object(forKey: "stallAutoRetry") as? Bool ?? true
+            UserDefaults.standard.removeObject(forKey: "stallAutoRetry")
+        }
+        if defaults.object(forKey: Key.bandwidthSharingMode) == nil {
+            let oldFair = defaults.object(forKey: Key.fairBandwidthSharing) as? Bool ?? true
+            bandwidthSharingMode = oldFair ? .fair : .auto
+        }
     }
 
     /// Older builds copied the custom slider into the global preset key.
@@ -615,7 +694,7 @@ final class AppSettings {
             folder: item.folder,
             saveDirectory: saveDirectory,
             domainPolicy: nil,
-            startImmediately: !holdNewDownloadsInQueue,
+            startImmediately: !addNewDownloadsPaused,
             postDownloadAction: item.postDownloadAction == .none ? defaultPostDownloadAction : item.postDownloadAction,
             scheduledStartAt: nil,
             startWhenOnWiFi: item.startWhenOnWiFi,
@@ -625,6 +704,101 @@ final class AppSettings {
         return options
     }
 
+    // MARK: - Column / Table helpers (UI state)
+
+    func moveTableColumn(from source: String, to target: String) {
+        guard source != target else { return }
+        var order = DownloadTableColumn.normalizedOrder(
+            tableColumnOrder.compactMap(DownloadTableColumn.init(rawValue:))
+        ).map(\.rawValue)
+        guard let fromIndex = order.firstIndex(of: source),
+              let toIndex = order.firstIndex(of: target) else { return }
+        order.remove(at: fromIndex)
+        order.insert(source, at: toIndex)
+        tableColumnOrder = order
+    }
+
+    func moveTableColumn(_ column: DownloadTableColumn, direction: Int) {
+        guard column.isReorderable else { return }
+        var order = DownloadTableColumn.normalizedOrder(
+            tableColumnOrder.compactMap(DownloadTableColumn.init(rawValue:))
+        )
+        guard let index = order.firstIndex(of: column) else { return }
+        let newIndex = index + direction
+        guard order.indices.contains(newIndex) else { return }
+        order.swapAt(index, newIndex)
+        tableColumnOrder = order.map(\.rawValue)
+    }
+
+    func resetTableColumnOrder() {
+        tableColumnOrder = DownloadTableColumn.defaultDataColumnOrder.map(\.rawValue)
+    }
+
+    private static func loadTableColumnOrder() -> [String] {
+        guard let raw = UserDefaults.standard.string(forKey: Key.tableColumnOrder), !raw.isEmpty else {
+            return DownloadTableColumn.defaultDataColumnOrder.map(\.rawValue)
+        }
+        let stored = raw.split(separator: ",").map(String.init)
+        return DownloadTableColumn.normalizedOrder(
+            stored.compactMap(DownloadTableColumn.init(rawValue:))
+        ).map(\.rawValue)
+    }
+
+    // MARK: - maxConcurrentDownloads
+
+    var maxConcurrentDownloads: Int = {
+        let val = UserDefaults.standard.integer(forKey: Key.maxConcurrentDownloads)
+        return val == 0 ? 2 : val
+    }() {
+        didSet {
+            UserDefaults.standard.set(maxConcurrentDownloads, forKey: Key.maxConcurrentDownloads)
+            DownloadManager.shared.processQueue()
+        }
+    }
+
+    var globalSpeedLimitBytesPerSecond: Int64 = {
+        UserDefaults.standard.value(forKey: Key.globalSpeedLimitBytesPerSecond) as? Int64 ?? 0
+    }() {
+        didSet {
+            UserDefaults.standard.set(globalSpeedLimitBytesPerSecond, forKey: Key.globalSpeedLimitBytesPerSecond)
+            if !useCustomSpeedLimit {
+                applyEffectiveSpeedLimit()
+            }
+        }
+    }
+
+    var launchAtLogin: Bool = {
+        UserDefaults.standard.object(forKey: Key.launchAtLogin) as? Bool ?? true
+    }() {
+        didSet {
+            UserDefaults.standard.set(launchAtLogin, forKey: Key.launchAtLogin)
+            LaunchAtLoginManager.setEnabled(launchAtLogin)
+        }
+    }
+
+    var startInBackground: Bool = {
+        UserDefaults.standard.object(forKey: Key.startInBackground) as? Bool ?? true
+    }() {
+        didSet { UserDefaults.standard.set(startInBackground, forKey: Key.startInBackground) }
+    }
+
+    var showMenuBarIcon: Bool {
+        didSet {
+            UserDefaults.standard.set(showMenuBarIcon, forKey: Key.showMenuBarIcon)
+            if !showMenuBarIcon { hideDockWhenInBackground = false }
+            BackgroundAppManager.shared.applyActivationPolicy()
+        }
+    }
+
+    var hideDockWhenInBackground: Bool {
+        didSet {
+            UserDefaults.standard.set(hideDockWhenInBackground, forKey: Key.hideDockWhenInBackground)
+            BackgroundAppManager.shared.applyActivationPolicy()
+        }
+    }
+
+    // MARK: - Reset
+
     func resetAllSettings() {
         let keysToReset: [String] = [
             Key.defaultSaveDirectoryBookmark,
@@ -632,7 +806,7 @@ final class AppSettings {
             Key.showConfirmationDialog,
             Key.pauseDownloadsOnQuit,
             Key.defaultSegmentsCount,
-            Key.holdNewDownloadsInQueue,
+            Key.addNewDownloadsPaused,
             Key.defaultPostDownloadAction,
             Key.conflictPolicy,
             Key.useCustomSpeedLimit,
@@ -656,12 +830,10 @@ final class AppSettings {
             Key.startInBackground,
             Key.showMenuBarIcon,
             Key.hideDockWhenInBackground,
-            Key.smartFeaturesEnabled,
-            Key.rememberFolderPerHost,
-            Key.detectContentDuplicates,
+            Key.rememberFolderPerDomain,
+            Key.detectDuplicateDownloads,
             Key.stallDetectionEnabled,
             Key.stallTimeoutSeconds,
-            Key.stallAutoRetry,
             Key.notifyOnStall,
             Key.adaptiveSegmentCount,
             Key.sizeBasedSegmentCountEnabled,
@@ -673,6 +845,15 @@ final class AppSettings {
             Key.queueBacklogThreshold,
             Key.largeFileThresholdGB,
             Key.showSmartSidebarFilters,
+            Key.accelerationLevel,
+            Key.bandwidthSharingMode,
+            Key.autoRetryEnabled,
+            Key.safariEnabled,
+            Key.chromeEnabled,
+            Key.firefoxEnabled,
+            Key.edgeEnabled,
+            Key.clipboardMonitoringEnabled,
+            Key.rememberFileTypeActions,
             "domainRules",
             "intelligence.hostPreferences",
             "intelligence.extensionRules",
@@ -689,18 +870,41 @@ final class AppSettings {
         showCompletionDialog = true
         showConfirmationDialog = true
         pauseDownloadsOnQuit = true
+        accelerationLevel = .balanced
+        addNewDownloadsPaused = false
         defaultSegmentsCount = 4
-        holdNewDownloadsInQueue = false
         defaultPostDownloadAction = .none
         conflictPolicy = .rename
         useCustomSpeedLimit = false
         customSpeedLimitBytesPerSecond = 3_000_000
         defaultStartWhenOnWiFi = false
+        bandwidthSharingMode = .auto
+        autoRetryEnabled = true
+        stallDetectionEnabled = true
+        stallTimeoutSeconds = 120
         probeTimeoutSeconds = 30
         segmentRetries = 3
+        safariEnabled = true
+        chromeEnabled = true
+        firefoxEnabled = false
+        edgeEnabled = false
         sendBrowserHeadersByDefault = true
+        clipboardMonitoringEnabled = false
+        rememberFolderPerDomain = true
+        rememberFileTypeActions = true
+        detectDuplicateDownloads = true
+        smartPostDownloadActions = true
+        schedulerEnabled = false
+        schedulerStartHour = 2
+        schedulerStartMinute = 0
+        schedulerStopHour = 6
+        schedulerStopMinute = 0
+        onQueueCompleteAction = .doNothing
         notifyOnComplete = true
         notifyOnFailed = true
+        notifyOnStall = true
+        notifyOnQueueBacklog = false
+        queueBacklogThreshold = 5
         playNotificationSound = true
         showDockBadge = true
         historyRetentionDays = 30
@@ -718,23 +922,12 @@ final class AppSettings {
         showMenuBarIcon = true
         hideDockWhenInBackground = true
         BackgroundAppManager.shared.applyActivationPolicy()
-        smartFeaturesEnabled = true
-        rememberFolderPerHost = true
-        detectContentDuplicates = true
-        stallDetectionEnabled = true
-        stallTimeoutSeconds = 120
-        stallAutoRetry = true
-        notifyOnStall = true
         adaptiveSegmentCount = true
         sizeBasedSegmentCountEnabled = true
         segmentCountTiers = SegmentCountPolicy.defaultTiers
-        fairBandwidthSharing = true
-        smartPostDownloadActions = true
-        showInspectorInsights = true
-        notifyOnQueueBacklog = false
-        queueBacklogThreshold = 5
-        largeFileThresholdGB = 1
         showSmartSidebarFilters = true
+        showInspectorInsights = true
+        largeFileThresholdGB = 1
         AppShortcutSettings.shared.resetAll()
         DownloadLearningStore.clearAll()
         DownloadManager.shared.applySegmentRetries(3)

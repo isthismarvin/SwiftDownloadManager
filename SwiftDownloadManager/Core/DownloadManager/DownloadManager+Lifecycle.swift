@@ -31,10 +31,12 @@ extension DownloadManager {
 
         switch item.status {
         case .downloading:
+            activeDownloadItems.removeValue(forKey: id)
             engine.pauseDownload(id: id)
         case .queued:
             cancelPrepareDownload(for: id)
             sessions.endDownloading(id)
+            activeDownloadItems.removeValue(forKey: id)
             item.status = .paused
             saveNow()
         default:
@@ -49,6 +51,7 @@ extension DownloadManager {
         sessions.markCancelled(id)
         cancelMetadataProbe(for: id)
         cancelPrepareDownload(for: id)
+        activeDownloadItems.removeValue(forKey: id)
         engine.cancelDownload(id: id)
 
         // The engine only removes files of active downloads — clean up
@@ -76,6 +79,21 @@ extension DownloadManager {
         deleteDownload(id: item.id)
     }
 
+    func setSpeedLimit(bytesPerSecond: Int64?, for id: UUID) {
+        guard let item = fetchItem(id: id) else { return }
+        let effectiveLimit = (bytesPerSecond != nil && bytesPerSecond! > 0) ? bytesPerSecond : nil
+        item.customSpeedLimitBytesPerSecond = effectiveLimit
+        saveNow()
+        engine.setSpeedLimit(effectiveLimit ?? 0, for: id)
+    }
+
+    func setPriority(_ priority: DownloadPriority, for id: UUID) {
+        guard let item = fetchItem(id: id) else { return }
+        item.priority = priority
+        saveNow()
+        processQueue()
+    }
+
     func deleteDownload(id: UUID) {
         guard let modelContext = modelContext else { return }
         guard let item = fetchItem(id: id) else { return }
@@ -93,6 +111,7 @@ extension DownloadManager {
         engine.cancelDownload(id: id, removeFile: true)
         removePartialFile(of: item)
         releaseScopedDirectory(for: id)
+        activeDownloadItems.removeValue(forKey: id)
         metricsTrackers.removeValue(forKey: id)
         conflictPolicyOverrides.removeValue(forKey: id)
 
@@ -108,6 +127,7 @@ extension DownloadManager {
         guard let allItems = try? modelContext.fetch(descriptor) else { return }
 
         for item in allItems where item.status == .downloading || item.status == .queued {
+            activeDownloadItems.removeValue(forKey: item.id)
             if item.status == .downloading {
                 engine.pauseDownload(id: item.id)
             } else {
@@ -250,7 +270,7 @@ extension DownloadManager {
             // Re-establish sandbox access to the user-selected folder.
             if let bookmark = currentItem.saveDirectoryBookmark,
                let scoped = BookmarkHelper.resolveBookmark(bookmark) {
-                scopedDirectories[id] = scoped
+                sandboxService.retainScopedDirectory(scoped, for: id)
             }
             targetURL = URL(fileURLWithPath: existingPath)
         } else {
@@ -275,7 +295,7 @@ extension DownloadManager {
                 return
             }
             if let scoped = resolved.scopedDirectoryURL {
-                scopedDirectories[id] = scoped
+                sandboxService.retainScopedDirectory(scoped, for: id)
             }
             targetURL = resolved.fileURL
         }
@@ -288,10 +308,32 @@ extension DownloadManager {
             return
         }
 
+        if currentItem.bytesTotal > 0 {
+            let neededBytes = currentItem.bytesTotal - currentItem.bytesReceived
+            if neededBytes > 0 {
+                let folderURL = targetURL.deletingLastPathComponent()
+                if let values = try? folderURL.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
+                   let available = values.volumeAvailableCapacityForImportantUsage,
+                   available < neededBytes {
+                    sessions.endPreparing(id)
+                    currentItem.status = .failed
+                    currentItem.errorMessage = L10n.t(
+                        de: "Nicht genügend freier Speicherplatz auf dem Zielvolume.",
+                        en: "Not enough free disk space on the target volume."
+                    )
+                    saveNow()
+                    logger.error("Insufficient disk space for \(currentItem.fileName, privacy: .public): needed \(neededBytes) bytes, available \(available) bytes")
+                    processQueue()
+                    return
+                }
+            }
+        }
+
         currentItem.localFilePath = targetURL.path
         currentItem.fileName = targetURL.lastPathComponent
         currentItem.status = .downloading
         sessions.beginDownloading(id)
+        activeDownloadItems[id] = currentItem
         metricsTrackers[id]?.reset()
         saveNow()
 
@@ -305,7 +347,9 @@ extension DownloadManager {
             filePath: targetURL.path,
             bytesTotal: currentItem.bytesTotal,
             segments: engineSegments,
-            requestHeaders: currentItem.requestHeaders
+            requestHeaders: currentItem.requestHeaders,
+            maxConcurrentConnections: max(1, currentItem.preferredSegmentsCount),
+            speedLimit: currentItem.customSpeedLimitBytesPerSecond
         )
     }
 
@@ -324,7 +368,39 @@ extension DownloadManager {
         schedulerTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(15))
-                self?.processQueue()
+                guard let self else { return }
+
+                if AppSettings.shared.schedulerEnabled {
+                    let now = Date()
+                    let calendar = Calendar.current
+                    let hour = calendar.component(.hour, from: now)
+                    let minute = calendar.component(.minute, from: now)
+                    let currentMinutes = hour * 60 + minute
+
+                    let startMinutes = AppSettings.shared.schedulerStartHour * 60 + AppSettings.shared.schedulerStartMinute
+                    let stopMinutes = AppSettings.shared.schedulerStopHour * 60 + AppSettings.shared.schedulerStopMinute
+
+                    let isWithinWindow: Bool
+                    if startMinutes <= stopMinutes {
+                        isWithinWindow = currentMinutes >= startMinutes && currentMinutes < stopMinutes
+                    } else {
+                        // Overnight window (e.g. 23:00 to 06:00)
+                        isWithinWindow = currentMinutes >= startMinutes || currentMinutes < stopMinutes
+                    }
+
+                    if isWithinWindow {
+                        if self.sessions.activeCount == 0 {
+                            self.processQueue()
+                        }
+                    } else {
+                        if self.sessions.activeCount > 0 {
+                            self.logger.info("Scheduler window closed — pausing active downloads")
+                            self.pauseAll()
+                        }
+                    }
+                } else {
+                    self.processQueue()
+                }
             }
         }
     }

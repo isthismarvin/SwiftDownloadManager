@@ -186,27 +186,69 @@ final class LocalHTTPServer: @unchecked Sendable {
     }
 
     private func respond(to request: HTTPRequestParser.ParsedRequest, on connection: NWConnection) {
+        let rawOrigin = request.headers["origin"]
+        let allowedOrigin: String?
+
+        if let origin = rawOrigin, !origin.isEmpty {
+            let lower = origin.lowercased()
+            if lower.hasPrefix("chrome-extension://") ||
+               lower.hasPrefix("moz-extension://") ||
+               lower.hasPrefix("safari-web-extension://") {
+                allowedOrigin = origin
+            } else {
+                send(
+                    status: "403 Forbidden",
+                    json: ["error": "cross-origin access denied"],
+                    on: connection,
+                    allowedOrigin: nil
+                )
+                return
+            }
+        } else {
+            allowedOrigin = nil
+        }
+
         switch (request.method, request.path) {
         case ("OPTIONS", _):
-            send(status: "204 No Content", json: nil, on: connection)
+            send(status: "204 No Content", json: nil, on: connection, allowedOrigin: allowedOrigin)
         case ("GET", "/ping"):
             DispatchQueue.main.async {
                 LocalHTTPServer.shared.markExtensionContactFromNetworkThread()
             }
-            send(status: "200 OK", json: ["status": "ok", "app": "SwiftDownloadManager"], on: connection)
+            send(
+                status: "200 OK",
+                json: ["status": "ok", "app": "SwiftDownloadManager"],
+                on: connection,
+                allowedOrigin: allowedOrigin
+            )
         case ("POST", "/add"):
-            handleAdd(body: request.body, on: connection)
+            let handshake = request.headers["x-sdm-handshake"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard handshake == "extension" else {
+                send(
+                    status: "403 Forbidden",
+                    json: ["error": "missing or invalid handshake header"],
+                    on: connection,
+                    allowedOrigin: allowedOrigin
+                )
+                return
+            }
+            handleAdd(body: request.body, on: connection, allowedOrigin: allowedOrigin)
         default:
-            send(status: "404 Not Found", json: ["error": "not found"], on: connection)
+            send(
+                status: "404 Not Found",
+                json: ["error": "not found"],
+                on: connection,
+                allowedOrigin: allowedOrigin
+            )
         }
     }
 
-    private func handleAdd(body: Data, on connection: NWConnection) {
+    private func handleAdd(body: Data, on connection: NWConnection, allowedOrigin: String?) {
         guard
             let payload = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
             let urlString = payload["url"] as? String
         else {
-            send(status: "400 Bad Request", json: ["error": "missing url"], on: connection)
+            send(status: "400 Bad Request", json: ["error": "missing url"], on: connection, allowedOrigin: allowedOrigin)
             return
         }
 
@@ -216,7 +258,7 @@ final class LocalHTTPServer: @unchecked Sendable {
             let scheme = url.scheme?.lowercased(),
             scheme == "http" || scheme == "https"
         else {
-            send(status: "400 Bad Request", json: ["error": "invalid url"], on: connection)
+            send(status: "400 Bad Request", json: ["error": "invalid url"], on: connection, allowedOrigin: allowedOrigin)
             return
         }
 
@@ -235,7 +277,12 @@ final class LocalHTTPServer: @unchecked Sendable {
             LocalHTTPServer.shared.markExtensionContactFromNetworkThread()
             let manager = DownloadManager.shared
             guard manager.modelContext != nil else {
-                self.send(status: "503 Service Unavailable", json: ["error": "app is still starting"], on: connection)
+                self.send(
+                    status: "503 Service Unavailable",
+                    json: ["error": "app is still starting"],
+                    on: connection,
+                    allowedOrigin: allowedOrigin
+                )
                 return
             }
             let outcome = manager.receiveDownload(
@@ -247,20 +294,25 @@ final class LocalHTTPServer: @unchecked Sendable {
             )
             switch outcome {
             case .queued:
-                self.send(status: "200 OK", json: ["added": true, "started": true], on: connection)
+                self.send(status: "200 OK", json: ["added": true, "started": true], on: connection, allowedOrigin: allowedOrigin)
             case .awaitingConfirmation, .duplicateAwaitingConfirmation:
-                self.send(status: "200 OK", json: ["added": true, "awaitingConfirmation": true], on: connection)
+                self.send(status: "200 OK", json: ["added": true, "awaitingConfirmation": true], on: connection, allowedOrigin: allowedOrigin)
             case .blocked:
-                self.send(status: "403 Forbidden", json: ["error": "domain blocked"], on: connection)
+                self.send(status: "403 Forbidden", json: ["error": "domain blocked"], on: connection, allowedOrigin: allowedOrigin)
             case nil:
-                self.send(status: "503 Service Unavailable", json: ["error": "could not enqueue download"], on: connection)
+                self.send(status: "503 Service Unavailable", json: ["error": "could not enqueue download"], on: connection, allowedOrigin: allowedOrigin)
             }
         }
     }
 
     // MARK: - Response writing
 
-    private func send(status: String, json: [String: Any]?, on connection: NWConnection) {
+    private func send(
+        status: String,
+        json: [String: Any]?,
+        on connection: NWConnection,
+        allowedOrigin: String? = nil
+    ) {
         var body = Data()
         if let json, let encoded = try? JSONSerialization.data(withJSONObject: json) {
             body = encoded
@@ -269,9 +321,12 @@ final class LocalHTTPServer: @unchecked Sendable {
         var head = "HTTP/1.1 \(status)\r\n"
         head += "Content-Type: application/json\r\n"
         head += "Content-Length: \(body.count)\r\n"
-        head += "Access-Control-Allow-Origin: *\r\n"
-        head += "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
-        head += "Access-Control-Allow-Headers: Content-Type\r\n"
+        if let allowedOrigin {
+            head += "Access-Control-Allow-Origin: \(allowedOrigin)\r\n"
+            head += "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+            head += "Access-Control-Allow-Headers: Content-Type, X-SDM-Handshake\r\n"
+            head += "Vary: Origin\r\n"
+        }
         head += "Connection: close\r\n"
         head += "\r\n"
 

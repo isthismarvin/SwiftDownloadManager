@@ -78,7 +78,7 @@ enum DownloadProbeService {
         RequestHeadersHelper.applying(headers, to: &request)
 
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await URLSession.shared.bytes(for: request)
             guard let httpResponse = response as? HTTPURLResponse else { return .inconclusive }
 
             var result = HTTPHeaderHelper.parseHEADResponse(httpResponse)

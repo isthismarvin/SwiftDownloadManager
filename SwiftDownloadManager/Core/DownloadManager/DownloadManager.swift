@@ -19,6 +19,7 @@ enum DownloadSortOrder: String, CaseIterable, Identifiable, Codable {
     case status
     case size
     case eta
+    case priority
 
     var id: String { rawValue }
 
@@ -31,6 +32,7 @@ enum DownloadSortOrder: String, CaseIterable, Identifiable, Codable {
         case "status", "Status": return .status
         case "size", "Size": return .size
         case "eta", "ETA": return .eta
+        case "priority", "Priority": return .priority
         default: return .dateAdded
         }
     }
@@ -39,7 +41,7 @@ enum DownloadSortOrder: String, CaseIterable, Identifiable, Codable {
     var prefersAscending: Bool {
         switch self {
         case .name, .status, .eta: return true
-        case .dateAdded, .progress, .speed, .size: return false
+        case .dateAdded, .progress, .speed, .size, .priority: return false
         }
     }
 
@@ -52,6 +54,7 @@ enum DownloadSortOrder: String, CaseIterable, Identifiable, Codable {
         case .status: return L10n.t(de: "Status", en: "Status")
         case .size: return L10n.t(de: "Größe", en: "Size")
         case .eta: return L10n.t(de: "Verbleibend", en: "Remaining")
+        case .priority: return L10n.t(de: "Priorität", en: "Priority")
         }
     }
 }
@@ -67,6 +70,9 @@ final class DownloadManager {
     let engine = DownloadEngine()
     let sessions = DownloadSessionRegistry()
     var metricsTrackers: [UUID: DownloadMetricsTracker] = [:]
+    /// In-memory cache of items currently downloading, avoiding expensive SwiftData fetch scans
+    /// at high progress frequencies (~10Hz).
+    var activeDownloadItems: [UUID: DownloadItem] = [:]
     private(set) var aggregateDisplaySpeed: Double = 0
     var pendingSave = false
     var saveDebounceTask: Task<Void, Never>?
@@ -74,9 +80,8 @@ final class DownloadManager {
     var prepareDownloadTasks: [UUID: Task<Void, Never>] = [:]
     var metadataProbeGeneration: [UUID: UInt64] = [:]
     var prepareDownloadGeneration: [UUID: UInt64] = [:]
-    /// Security-scoped directory URLs held open while a download writes into a
-    /// user-selected folder. Released when the download stops.
-    var scopedDirectories: [UUID: URL] = [:]
+    /// Manages the lifecycle of security-scoped resource access for active downloads.
+    let sandboxService = DownloadSandboxService.shared
     /// Progress arriving from the engine is kept in memory and only flushed to
     /// SwiftData at the debounced save cadence — live UI reads the metrics
     /// trackers instead of the store.
@@ -110,6 +115,7 @@ final class DownloadManager {
             pruneHistory(olderThanDays: AppSettings.shared.historyRetentionDays)
             NotificationService.requestAuthorization()
             LocalHTTPServer.shared.start()
+            ClipboardMonitor.shared.start()
             startScheduler()
             FileLocationMonitor.shared.start { [weak self] in
                 self?.reconcileAllCompletedFileLocations()
@@ -132,6 +138,7 @@ final class DownloadManager {
     /// Synchronously persists all pending changes (used right before quit).
     func flushPendingChanges() {
         saveNow()
+        sandboxService.releaseAll()
     }
 
     func togglePauseResume(id: UUID) {
@@ -184,10 +191,17 @@ final class DownloadManager {
     }
 
     func refreshAggregateDisplaySpeed() {
-        aggregateDisplaySpeed = fetchAllItemsForUI()
-            .filter { $0.status == .downloading }
-            .reduce(0.0) { partial, item in
-                partial + metricsTracker(for: item.id).displaySpeed
-            }
+        if !activeDownloadItems.isEmpty {
+            aggregateDisplaySpeed = activeDownloadItems.values
+                .reduce(0.0) { partial, item in
+                    partial + metricsTracker(for: item.id).displaySpeed
+                }
+        } else {
+            aggregateDisplaySpeed = fetchAllItemsForUI()
+                .filter { $0.status == .downloading }
+                .reduce(0.0) { partial, item in
+                    partial + metricsTracker(for: item.id).displaySpeed
+                }
+        }
     }
 }
