@@ -186,6 +186,75 @@ struct AutomationSettingsPanel: View {
                         }
                     }
                 }
+
+                // MARK: - Power & Network Behavior
+                SettingsPanelSection(
+                    title: L10n.t(de: "Energie & Netzwerk", en: "Power & Network"),
+                    footer: L10n.t(
+                        de: "Steuert, wie sich das System bei aktiven Downloads und Verbindungsabbrüchen verhält.",
+                        en: "Controls system behavior during active downloads and connection losses."
+                    )
+                ) {
+                    SettingsRoundedCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            SettingsToggleRow(
+                                title: L10n.t(de: "Ruhezustand bei Downloads verhindern", en: "Prevent Mac sleep during downloads"),
+                                systemImage: "moon.zzz.fill",
+                                isOn: $appSettings.preventIdleSleepWhileDownloading,
+                                help: L10n.t(
+                                    de: "Hält eine macOS-Power-Assertion aktiv, damit der Mac bei großen Downloads nicht einschläft.",
+                                    en: "Holds a macOS power assertion so your Mac will not sleep mid-transfer."
+                                )
+                            )
+                            Divider()
+                            SettingsToggleRow(
+                                title: L10n.t(de: "Downloads bei Wiederverbindung fortsetzen", en: "Auto-resume on reconnect"),
+                                systemImage: "wifi.badge.plus",
+                                isOn: $appSettings.autoResumeOnNetworkRestore,
+                                help: L10n.t(
+                                    de: "Nimmt durch Netzwerkunterbrechungen pausierte oder fehlgeschlagene Downloads automatisch wieder auf.",
+                                    en: "Automatically resumes downloads interrupted by Wi-Fi or network outages when connected."
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // MARK: - Window & Lifecycle Behavior
+                SettingsPanelSection(
+                    title: L10n.t(de: "Fenster & Beenden", en: "Window & Quitting"),
+                    footer: L10n.t(
+                        de: "Verhalten des roten Schließen-Buttons und Sicherheitsabfrage beim Beenden.",
+                        en: "Behavior of the red close button and quit safety prompt."
+                    )
+                ) {
+                    SettingsRoundedCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "xmark.circle")
+                                    .foregroundStyle(.secondary)
+                                Text(L10n.t(de: "Schließen-Button:", en: "Close button:"))
+                                Spacer()
+                                Picker("", selection: $appSettings.windowCloseBehavior) {
+                                    ForEach(WindowCloseBehavior.allCases) { behavior in
+                                        Text(behavior.displayName).tag(behavior)
+                                    }
+                                }
+                                .frame(minWidth: 220)
+                            }
+                            Divider()
+                            SettingsToggleRow(
+                                title: L10n.t(de: "Bestätigen vor dem Beenden mit aktiven Downloads", en: "Confirm before quit with active downloads"),
+                                systemImage: "questionmark.circle",
+                                isOn: $appSettings.confirmQuitWhenDownloading,
+                                help: L10n.t(
+                                    de: "Fragt nach, ob Downloads im Hintergrund weiterlaufen oder pausiert werden sollen.",
+                                    en: "Asks whether to continue downloading in the background or pause before quitting."
+                                )
+                            )
+                        }
+                    }
+                }
             }
             .settingsPanelStack()
         }

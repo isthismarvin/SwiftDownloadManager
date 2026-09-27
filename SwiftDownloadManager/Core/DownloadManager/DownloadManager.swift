@@ -135,10 +135,49 @@ final class DownloadManager {
         sessions.activeCount > 0
     }
 
+    var activeDownloadsCount: Int {
+        sessions.activeCount
+    }
+
+    func updateDockProgress() {
+        let active = sessions.activeCount
+        guard active > 0 else {
+            DockProgressManager.shared.update(activeCount: 0)
+            SleepAssertionManager.shared.update(activeCount: 0)
+            return
+        }
+
+        var totalBytesReceived: Int64 = 0
+        var totalBytesExpected: Int64 = 0
+        var totalSpeed: Double = 0
+
+        for id in sessions.activeIDs {
+            let tracker = metricsTracker(for: id)
+            totalSpeed += tracker.currentSpeed
+            if let item = activeDownloadItems[id] ?? fetchItem(id: id), item.bytesTotal > 0 {
+                let live = tracker.liveBytesReceived
+                totalBytesReceived += live > 0 ? live : item.bytesReceived
+                totalBytesExpected += item.bytesTotal
+            }
+        }
+
+        let overallProgress: Double? = (totalBytesExpected > 0)
+            ? Double(totalBytesReceived) / Double(totalBytesExpected)
+            : nil
+
+        DockProgressManager.shared.update(
+            activeCount: active,
+            totalSpeedBytesPerSecond: totalSpeed,
+            overallProgress: overallProgress
+        )
+        SleepAssertionManager.shared.update(activeCount: active)
+    }
+
     /// Synchronously persists all pending changes (used right before quit).
     func flushPendingChanges() {
         saveNow()
         sandboxService.releaseAll()
+        SleepAssertionManager.shared.releaseAssertion()
     }
 
     func togglePauseResume(id: UUID) {
@@ -203,5 +242,6 @@ final class DownloadManager {
                     partial + metricsTracker(for: item.id).displaySpeed
                 }
         }
+        updateDockProgress()
     }
 }

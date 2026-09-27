@@ -47,13 +47,9 @@ enum NotificationService {
         )
     }
 
-    /// Shows the number of active downloads on the Dock icon.
+    /// Shows the number of active downloads, speed, or progress on the Dock icon.
     static func updateDockBadge(activeCount: Int) {
-        guard AppSettings.shared.showDockBadge else {
-            NSApplication.shared.dockTile.badgeLabel = ""
-            return
-        }
-        NSApplication.shared.dockTile.badgeLabel = activeCount > 0 ? "\(activeCount)" : ""
+        DownloadManager.shared.updateDockProgress()
     }
 
     private static func post(title: String, body: String) {

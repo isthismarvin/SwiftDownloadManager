@@ -1,44 +1,12 @@
 import Foundation
 import Observation
 
-enum DestinationConflictPolicy: String, CaseIterable, Identifiable, Codable, Sendable {
-    case rename
-    case overwrite
-    case ask
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .rename: return L10n.t(de: "Umbenennen", en: "Rename")
-        case .overwrite: return L10n.t(de: "Überschreiben", en: "Overwrite")
-        case .ask: return L10n.t(de: "Jedes Mal fragen", en: "Ask every time")
-        }
-    }
-}
-
-enum OnQueueCompleteAction: String, CaseIterable, Identifiable, Codable, Sendable {
-    case doNothing
-    case sleepMac
-    case quitApp
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .doNothing: return L10n.t(de: "Nichts tun", en: "Do nothing")
-        case .sleepMac: return L10n.t(de: "Mac in Ruhezustand versetzen", en: "Put Mac to sleep")
-        case .quitApp: return L10n.t(de: "App beenden", en: "Quit application")
-        }
-    }
-}
-
 @Observable
 @MainActor
 final class AppSettings {
     static let shared = AppSettings()
 
-    private enum Key {
+    enum Key {
         static let defaultSaveDirectoryBookmark = "defaultSaveDirectoryBookmark"
         static let showCompletionDialog = "showCompletionDialog"
         static let showConfirmationDialog = "showConfirmationDialog"
@@ -103,6 +71,12 @@ final class AppSettings {
         static let schedulerStopHour = "schedulerStopHour"
         static let schedulerStopMinute = "schedulerStopMinute"
         static let onQueueCompleteAction = "onQueueCompleteAction"
+        static let preventIdleSleepWhileDownloading = "preventIdleSleepWhileDownloading"
+        static let autoResumeOnNetworkRestore = "autoResumeOnNetworkRestore"
+        static let dockBadgeDisplayMode = "dockBadgeDisplayMode"
+        static let dockShowProgressBar = "dockShowProgressBar"
+        static let windowCloseBehavior = "windowCloseBehavior"
+        static let confirmQuitWhenDownloading = "confirmQuitWhenDownloading"
     }
 
     var appLanguage: AppLanguage = {
@@ -296,6 +270,25 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(onQueueCompleteAction.rawValue, forKey: Key.onQueueCompleteAction) }
     }
 
+    var preventIdleSleepWhileDownloading: Bool {
+        didSet {
+            UserDefaults.standard.set(preventIdleSleepWhileDownloading, forKey: Key.preventIdleSleepWhileDownloading)
+            SleepAssertionManager.shared.update(activeCount: DownloadManager.shared.activeDownloadsCount)
+        }
+    }
+
+    var autoResumeOnNetworkRestore: Bool {
+        didSet { UserDefaults.standard.set(autoResumeOnNetworkRestore, forKey: Key.autoResumeOnNetworkRestore) }
+    }
+
+    var windowCloseBehavior: WindowCloseBehavior {
+        didSet { UserDefaults.standard.set(windowCloseBehavior.rawValue, forKey: Key.windowCloseBehavior) }
+    }
+
+    var confirmQuitWhenDownloading: Bool {
+        didSet { UserDefaults.standard.set(confirmQuitWhenDownloading, forKey: Key.confirmQuitWhenDownloading) }
+    }
+
     // MARK: - Notifications
 
     var notifyOnComplete: Bool {
@@ -323,7 +316,24 @@ final class AppSettings {
     }
 
     var showDockBadge: Bool {
-        didSet { UserDefaults.standard.set(showDockBadge, forKey: Key.showDockBadge) }
+        didSet {
+            UserDefaults.standard.set(showDockBadge, forKey: Key.showDockBadge)
+            DownloadManager.shared.updateDockProgress()
+        }
+    }
+
+    var dockBadgeDisplayMode: DockBadgeDisplayMode {
+        didSet {
+            UserDefaults.standard.set(dockBadgeDisplayMode.rawValue, forKey: Key.dockBadgeDisplayMode)
+            DownloadManager.shared.updateDockProgress()
+        }
+    }
+
+    var dockShowProgressBar: Bool {
+        didSet {
+            UserDefaults.standard.set(dockShowProgressBar, forKey: Key.dockShowProgressBar)
+            DownloadManager.shared.updateDockProgress()
+        }
     }
 
     // MARK: - History
@@ -592,6 +602,11 @@ final class AppSettings {
         } else {
             onQueueCompleteAction = .doNothing
         }
+        preventIdleSleepWhileDownloading = defaults.object(forKey: Key.preventIdleSleepWhileDownloading) as? Bool ?? true
+        autoResumeOnNetworkRestore = defaults.object(forKey: Key.autoResumeOnNetworkRestore) as? Bool ?? true
+        let windowCloseRaw = defaults.string(forKey: Key.windowCloseBehavior) ?? ""
+        windowCloseBehavior = WindowCloseBehavior(rawValue: windowCloseRaw) ?? .hideToMenuBar
+        confirmQuitWhenDownloading = defaults.object(forKey: Key.confirmQuitWhenDownloading) as? Bool ?? true
         notifyOnComplete = defaults.object(forKey: Key.notifyOnComplete) as? Bool ?? true
         notifyOnFailed = defaults.object(forKey: Key.notifyOnFailed) as? Bool ?? true
         notifyOnStall = defaults.object(forKey: Key.notifyOnStall) as? Bool ?? true
@@ -600,6 +615,9 @@ final class AppSettings {
         queueBacklogThreshold = backlog == 0 ? 5 : backlog
         playNotificationSound = defaults.object(forKey: Key.playNotificationSound) as? Bool ?? true
         showDockBadge = defaults.object(forKey: Key.showDockBadge) as? Bool ?? true
+        let dockModeRaw = defaults.string(forKey: Key.dockBadgeDisplayMode) ?? ""
+        dockBadgeDisplayMode = DockBadgeDisplayMode(rawValue: dockModeRaw) ?? .activeCount
+        dockShowProgressBar = defaults.object(forKey: Key.dockShowProgressBar) as? Bool ?? true
         let retention = defaults.integer(forKey: Key.historyRetentionDays)
         historyRetentionDays = retention == 0 ? 30 : retention
         appLanguage = AppLanguage(rawValue: defaults.string(forKey: Key.appLanguage) ?? "") ?? .system
@@ -631,25 +649,6 @@ final class AppSettings {
         segmentCountTiers = Self.loadSegmentCountTiers()
         sanitizePollutedGlobalSpeedLimit()
         ensureMigrationFromOldKeys()
-    }
-
-    private func ensureMigrationFromOldKeys() {
-        let defaults = UserDefaults.standard
-        if defaults.object(forKey: Key.autoRetryEnabled) == nil {
-            autoRetryEnabled = defaults.object(forKey: "stallAutoRetry") as? Bool ?? true
-            UserDefaults.standard.removeObject(forKey: "stallAutoRetry")
-        }
-        if defaults.object(forKey: Key.bandwidthSharingMode) == nil {
-            let oldFair = defaults.object(forKey: Key.fairBandwidthSharing) as? Bool ?? true
-            bandwidthSharingMode = oldFair ? .fair : .auto
-        }
-    }
-
-    /// Older builds copied the custom slider into the global preset key.
-    private func sanitizePollutedGlobalSpeedLimit() {
-        guard !useCustomSpeedLimit,
-              !Self.speedLimitPresets.contains(globalSpeedLimitBytesPerSecond) else { return }
-        globalSpeedLimitBytesPerSecond = 0
     }
 
     private static func clampInspectorHeight(_ value: CGFloat) -> CGFloat {
@@ -808,144 +807,5 @@ final class AppSettings {
             BackgroundAppManager.shared.applyActivationPolicy()
         }
     }
-
-    // MARK: - Reset
-
-    func resetAllSettings() {
-        let keysToReset: [String] = [
-            Key.defaultSaveDirectoryBookmark,
-            Key.showCompletionDialog,
-            Key.showConfirmationDialog,
-            Key.pauseDownloadsOnQuit,
-            Key.defaultSegmentsCount,
-            Key.addNewDownloadsPaused,
-            Key.defaultPostDownloadAction,
-            Key.conflictPolicy,
-            Key.useCustomSpeedLimit,
-            Key.customSpeedLimitBytesPerSecond,
-            Key.defaultStartWhenOnWiFi,
-            Key.probeTimeoutSeconds,
-            Key.segmentRetries,
-            Key.sendBrowserHeadersByDefault,
-            Key.notifyOnComplete,
-            Key.notifyOnFailed,
-            Key.playNotificationSound,
-            Key.showDockBadge,
-            Key.historyRetentionDays,
-            Key.appLanguage,
-            Key.inspectorCollapsed,
-            Key.inspectorExpandedHeight,
-            Key.downloadSortOrder,
-            Key.maxConcurrentDownloads,
-            Key.globalSpeedLimitBytesPerSecond,
-            Key.launchAtLogin,
-            Key.startInBackground,
-            Key.showMenuBarIcon,
-            Key.hideDockWhenInBackground,
-            Key.rememberFolderPerDomain,
-            Key.detectDuplicateDownloads,
-            Key.stallDetectionEnabled,
-            Key.stallTimeoutSeconds,
-            Key.notifyOnStall,
-            Key.adaptiveSegmentCount,
-            Key.sizeBasedSegmentCountEnabled,
-            Key.segmentCountTiersJSON,
-            Key.fairBandwidthSharing,
-            Key.smartPostDownloadActions,
-            Key.autoExtractArchives,
-            Key.trashArchiveAfterExtraction,
-            Key.showInspectorInsights,
-            Key.notifyOnQueueBacklog,
-            Key.queueBacklogThreshold,
-            Key.largeFileThresholdGB,
-            Key.showSmartSidebarFilters,
-            Key.accelerationLevel,
-            Key.bandwidthSharingMode,
-            Key.autoRetryEnabled,
-            Key.safariEnabled,
-            Key.chromeEnabled,
-            Key.firefoxEnabled,
-            Key.edgeEnabled,
-            Key.clipboardMonitoringEnabled,
-            Key.rememberFileTypeActions,
-            "domainRules",
-            "intelligence.hostPreferences",
-            "intelligence.extensionRules",
-            "appShortcutOverrides",
-        ]
-        for key in keysToReset {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-
-        RecentDestinationsStore.clearAll()
-        DomainRuleStore.clearAllRules()
-
-        defaultSaveDirectoryBookmark = nil
-        showCompletionDialog = true
-        showConfirmationDialog = true
-        pauseDownloadsOnQuit = true
-        accelerationLevel = .balanced
-        addNewDownloadsPaused = false
-        defaultSegmentsCount = 4
-        defaultPostDownloadAction = .none
-        conflictPolicy = .rename
-        useCustomSpeedLimit = false
-        customSpeedLimitBytesPerSecond = 3_000_000
-        defaultStartWhenOnWiFi = false
-        bandwidthSharingMode = .auto
-        autoRetryEnabled = true
-        stallDetectionEnabled = true
-        stallTimeoutSeconds = 120
-        probeTimeoutSeconds = 30
-        segmentRetries = 3
-        safariEnabled = true
-        chromeEnabled = true
-        firefoxEnabled = false
-        edgeEnabled = false
-        sendBrowserHeadersByDefault = true
-        clipboardMonitoringEnabled = false
-        rememberFolderPerDomain = true
-        rememberFileTypeActions = true
-        detectDuplicateDownloads = true
-        smartPostDownloadActions = true
-        autoExtractArchives = false
-        trashArchiveAfterExtraction = false
-        schedulerEnabled = false
-        schedulerStartHour = 2
-        schedulerStartMinute = 0
-        schedulerStopHour = 6
-        schedulerStopMinute = 0
-        onQueueCompleteAction = .doNothing
-        notifyOnComplete = true
-        notifyOnFailed = true
-        notifyOnStall = true
-        notifyOnQueueBacklog = false
-        queueBacklogThreshold = 5
-        playNotificationSound = true
-        showDockBadge = true
-        historyRetentionDays = 30
-        appLanguage = .system
-        inspectorCollapsed = false
-        inspectorExpandedHeight = AppTheme.inspectorExpandedHeightDefault
-        sortOrder = .dateAdded
-        sortAscending = DownloadSortOrder.dateAdded.prefersAscending
-        tableColumnOrder = DownloadTableColumn.defaultDataColumnOrder.map(\.rawValue)
-        maxConcurrentDownloads = 2
-        globalSpeedLimitBytesPerSecond = 0
-        launchAtLogin = true
-        LaunchAtLoginManager.setEnabled(true)
-        startInBackground = true
-        showMenuBarIcon = true
-        hideDockWhenInBackground = true
-        BackgroundAppManager.shared.applyActivationPolicy()
-        adaptiveSegmentCount = true
-        sizeBasedSegmentCountEnabled = true
-        segmentCountTiers = SegmentCountPolicy.defaultTiers
-        showSmartSidebarFilters = true
-        showInspectorInsights = true
-        largeFileThresholdGB = 1
-        AppShortcutSettings.shared.resetAll()
-        DownloadLearningStore.clearAll()
-        DownloadManager.shared.applySegmentRetries(3)
-    }
 }
+

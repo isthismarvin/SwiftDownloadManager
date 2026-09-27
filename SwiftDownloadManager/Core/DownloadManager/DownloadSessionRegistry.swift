@@ -19,6 +19,10 @@ final class DownloadSessionRegistry {
         preparingIDs.count + downloadingIDs.count
     }
 
+    var activeIDs: Set<UUID> {
+        preparingIDs.union(downloadingIDs)
+    }
+
     func isActive(_ id: UUID) -> Bool {
         preparingIDs.contains(id) || downloadingIDs.contains(id)
     }

@@ -473,4 +473,35 @@ extension DownloadManager {
         }
         return SegmentIndexMap.make(from: mapped).values.sorted { $0.index < $1.index }
     }
+
+    func handleNetworkRestored() {
+        guard AppSettings.shared.autoResumeOnNetworkRestore else { return }
+        guard let modelContext else { return }
+
+        let descriptor = FetchDescriptor<DownloadItem>()
+        guard let allItems = try? modelContext.fetch(descriptor) else { return }
+
+        let networkInterruptedItems = allItems.filter { item in
+            guard item.status == .failed else { return false }
+            if let err = item.errorMessage?.lowercased() {
+                return err.contains("network")
+                    || err.contains("connection")
+                    || err.contains("timed out")
+                    || err.contains("internet")
+                    || err.contains("closed")
+                    || err.contains("socket")
+            }
+            return false
+        }
+
+        if !networkInterruptedItems.isEmpty {
+            logger.info("Network restored: auto-resuming \(networkInterruptedItems.count) interrupted download(s)")
+            for item in networkInterruptedItems {
+                item.status = .queued
+                item.errorMessage = nil
+            }
+            saveNow()
+        }
+        processQueue()
+    }
 }

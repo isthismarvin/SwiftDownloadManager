@@ -77,16 +77,43 @@ struct NotificationsSettingsPanel: View {
 
                 SettingsPanelSection(title: L10n.t(de: "Dock", en: "Dock")) {
                     SettingsRoundedCard {
-                        SettingsToggleRow(
-                            title: L10n.t(de: "Aktive Downloads im Dock anzeigen", en: "Show active downloads in Dock"),
-                            systemImage: "app.dock",
-                            isOn: $appSettings.showDockBadge,
-                            subtitle: L10n.t(de: "Badge mit Anzahl laufender Downloads", en: "Badge with number of active downloads"),
-                            help: L10n.t(
-                                de: "Zeigt die Anzahl aktiver Downloads als Zahl auf dem App-Dock-Icon.",
-                                en: "Shows the number of active downloads as a badge on the app Dock icon."
+                        VStack(alignment: .leading, spacing: 8) {
+                            SettingsToggleRow(
+                                title: L10n.t(de: "Aktive Downloads im Dock anzeigen", en: "Show active downloads in Dock"),
+                                systemImage: "app.dock",
+                                isOn: $appSettings.showDockBadge,
+                                subtitle: L10n.t(de: "Badge & Fortschritt auf dem App-Icon", en: "Badge & progress on the app icon"),
+                                help: L10n.t(
+                                    de: "Zeigt Download-Informationen live auf dem macOS Dock-Icon an.",
+                                    en: "Displays live download metrics directly on the macOS Dock icon."
+                                )
                             )
-                        )
+                            if appSettings.showDockBadge {
+                                Divider()
+                                HStack {
+                                    Image(systemName: "number.circle")
+                                        .foregroundStyle(.secondary)
+                                    Text(L10n.t(de: "Badge-Typ:", en: "Badge type:"))
+                                    Spacer()
+                                    Picker("", selection: $appSettings.dockBadgeDisplayMode) {
+                                        ForEach(DockBadgeDisplayMode.allCases) { mode in
+                                            Text(mode.displayName).tag(mode)
+                                        }
+                                    }
+                                    .frame(minWidth: 200)
+                                }
+                                Divider()
+                                SettingsToggleRow(
+                                    title: L10n.t(de: "Fortschrittsbalken im Dock anzeigen", en: "Show progress bar on Dock icon"),
+                                    systemImage: "chart.bar.fill",
+                                    isOn: $appSettings.dockShowProgressBar,
+                                    help: L10n.t(
+                                        de: "Zeichnet einen abgerundeten Gesamtfortschrittsbalken unten auf das Dock-Icon.",
+                                        en: "Draws a sleek overall progress bar overlay at the bottom of the Dock icon."
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
 

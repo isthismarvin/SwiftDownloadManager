@@ -73,7 +73,18 @@ final class MainWindowDelegate: NSObject, NSWindowDelegate {
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         Task { @MainActor in
-            BackgroundAppManager.shared.hideMainWindow()
+            switch AppSettings.shared.windowCloseBehavior {
+            case .hideToMenuBar:
+                BackgroundAppManager.shared.hideMainWindow()
+            case .minimize:
+                sender.miniaturize(nil)
+            case .quitIfIdle:
+                if DownloadManager.shared.hasActiveDownloads {
+                    BackgroundAppManager.shared.hideMainWindow()
+                } else {
+                    NSApp.terminate(nil)
+                }
+            }
         }
         return false
     }

@@ -282,10 +282,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let manager = DownloadManager.shared
+        if manager.hasActiveDownloads && AppSettings.shared.confirmQuitWhenDownloading {
+            let alert = NSAlert()
+            alert.messageText = L10n.t(
+                de: "Aktive Downloads laufen noch",
+                en: "Active Downloads in Progress"
+            )
+            alert.informativeText = L10n.t(
+                de: "Möchten Sie die Downloads im Hintergrund fortführen oder pausieren und die App beenden?",
+                en: "Do you want to continue downloads in the background, or pause and quit?"
+            )
+            alert.addButton(withTitle: L10n.t(de: "Im Hintergrund weiterladen", en: "Keep Downloading in Background"))
+            alert.addButton(withTitle: L10n.t(de: "Pausieren & Beenden", en: "Pause & Quit"))
+            alert.addButton(withTitle: L10n.t(de: "Abbrechen", en: "Cancel"))
+
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                BackgroundAppManager.shared.hideMainWindow()
+                return .terminateCancel
+            } else if response == .alertThirdButtonReturn {
+                return .terminateCancel
+            }
+        }
+
         LocalHTTPServer.shared.stop()
         ClipboardMonitor.shared.stop()
 
-        let manager = DownloadManager.shared
         guard manager.hasActiveDownloads else {
             manager.flushPendingChanges()
             return .terminateNow
