@@ -285,8 +285,6 @@ final class DownloadEngine: NSObject, @unchecked Sendable {
         }
     }
 
-
-
     // MARK: - Private
 
     @discardableResult
