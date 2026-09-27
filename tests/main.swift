@@ -468,6 +468,10 @@ do {
     expect(delay2 > 0, "consecutive chunk produces delay according to speed limit")
 }
 
+// MARK: - UI & State Tests
+
+runUITests()
+
 // MARK: - SiteCredentialStore & ArchiveExtraction
 
 SiteCredentialStoreAndArchiveTests.run()

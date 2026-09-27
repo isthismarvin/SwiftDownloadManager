@@ -24,6 +24,18 @@ struct DownloadListView: View {
         return filteredDownloads.first
     }
 
+    private var inspectorBottomInset: CGFloat {
+        guard inspectorDownload != nil else { return 0 }
+        var height = appSettings.inspectorCollapsed
+            ? AppTheme.inspectorCollapsedHeight
+            : appSettings.inspectorExpandedHeight
+        height += AppTheme.contentPadding
+        if viewModel.hasSelectionActions(in: downloads) {
+            height += 46
+        }
+        return height
+    }
+
     var body: some View {
         let _ = appSettings.appLanguage
         let _ = appSettings.sortOrder
@@ -37,7 +49,8 @@ struct DownloadListView: View {
                     viewModel: viewModel,
                     downloads: filteredDownloads,
                     folders: folders,
-                    hasAnyDownloads: !downloads.isEmpty
+                    hasAnyDownloads: !downloads.isEmpty,
+                    bottomInset: inspectorBottomInset
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -57,7 +70,7 @@ struct DownloadListView: View {
                 .animation(AppTheme.inspectorSpring, value: appSettings.inspectorCollapsed)
                 .padding(.horizontal, AppTheme.contentPadding)
                 .padding(.bottom, AppTheme.contentPadding)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .frame(maxWidth: .infinity, alignment: .bottom)
                 .allowsHitTesting(
                     inspectorDownload != nil || viewModel.hasSelectionActions(in: downloads)
                 )

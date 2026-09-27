@@ -67,7 +67,7 @@ struct DownloadTableRowView: View {
         .onHover { isHovered = $0 }
         .contextMenu { contextMenuContent }
         .overlay(alignment: .trailing) {
-            if isHovered {
+            if isHovered && hasHoverActions {
                 hoverActions
                     .padding(.trailing, 8)
                     .transition(.opacity)
@@ -350,31 +350,38 @@ struct DownloadTableRowView: View {
         }
     }
 
+    private var hasHoverActions: Bool {
+        viewModel.canResume || viewModel.canPause || viewModel.canCancel
+    }
+
+    @ViewBuilder
     private var hoverActions: some View {
-        GlassEffectContainer(spacing: 4) {
-            HStack(spacing: 4) {
-                if viewModel.canResume {
-                    actionButton(
-                        icon: "play.fill",
-                        help: L10n.t(de: "Fortsetzen", en: "Resume")
-                    ) { viewModel.resume() }
+        if hasHoverActions {
+            GlassEffectContainer(spacing: 4) {
+                HStack(spacing: 4) {
+                    if viewModel.canResume {
+                        actionButton(
+                            icon: "play.fill",
+                            help: L10n.t(de: "Fortsetzen", en: "Resume")
+                        ) { viewModel.resume() }
+                    }
+                    if viewModel.canPause {
+                        actionButton(
+                            icon: "pause.fill",
+                            help: L10n.t(de: "Pausieren", en: "Pause")
+                        ) { viewModel.pause() }
+                    }
+                    if viewModel.canCancel {
+                        actionButton(
+                            icon: "stop.fill",
+                            help: L10n.t(de: "Abbrechen", en: "Cancel")
+                        ) { viewModel.cancel() }
+                    }
                 }
-                if viewModel.canPause {
-                    actionButton(
-                        icon: "pause.fill",
-                        help: L10n.t(de: "Pausieren", en: "Pause")
-                    ) { viewModel.pause() }
-                }
-                if viewModel.canCancel {
-                    actionButton(
-                        icon: "stop.fill",
-                        help: L10n.t(de: "Abbrechen", en: "Cancel")
-                    ) { viewModel.cancel() }
-                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .appGlassCapsule()
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
-            .appGlassCapsule()
         }
     }
 

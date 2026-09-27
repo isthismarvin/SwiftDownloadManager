@@ -6,13 +6,18 @@ final class BackgroundAppManager {
     static let shared = BackgroundAppManager()
 
     private(set) var isMainWindowVisible = true
+    weak var cachedMainWindow: NSWindow?
 
     private init() {}
 
     func showMainWindow() {
         isMainWindowVisible = true
-        AppActivation.bringToForeground()
         applyActivationPolicy()
+        if let window = mainWindow {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        }
+        AppActivation.bringToForeground()
     }
 
     func hideMainWindow() {
@@ -44,6 +49,7 @@ final class BackgroundAppManager {
 
     func installMainWindowDelegate(retry: Int = 0) {
         if let window = mainWindow {
+            cachedMainWindow = window
             window.delegate = MainWindowDelegate.shared
             return
         }
@@ -60,9 +66,16 @@ final class BackgroundAppManager {
     }
 
     private var mainWindow: NSWindow? {
-        NSApp.windows.first { window in
-            window.canBecomeMain && !window.isSheet && !(window is NSPanel)
+        if let cached = cachedMainWindow {
+            return cached
         }
+        let found = NSApp.windows.first { window in
+            !window.isSheet && !(window is NSPanel)
+        }
+        if let found {
+            cachedMainWindow = found
+        }
+        return found
     }
 }
 

@@ -21,6 +21,7 @@ struct AddDownloadView: View {
     @State private var mode: AddDownloadMode = .single
 
     // Single mode state
+    @FocusState private var isURLFocused: Bool
     @State private var urlString = ""
     @State private var fileNameOverride = ""
 
@@ -133,6 +134,7 @@ struct AddDownloadView: View {
         .frame(minWidth: 460, idealWidth: 540, maxWidth: 640)
         .onAppear {
             segmentsCount = AppSettings.shared.defaultSegmentsCount
+            isURLFocused = true
         }
         .fileImporter(
             isPresented: $isShowingFolderPicker,
@@ -151,6 +153,7 @@ struct AddDownloadView: View {
         VStack(spacing: 12) {
             TextField(L10n.t(de: "Download-URL (https://…)", en: "Download URL (https://…)"), text: $urlString)
                 .textFieldStyle(.roundedBorder)
+                .focused($isURLFocused)
                 .frame(maxWidth: .infinity)
 
             TextField(L10n.t(de: "Dateiname (optional)", en: "File name (optional)"), text: $fileNameOverride)

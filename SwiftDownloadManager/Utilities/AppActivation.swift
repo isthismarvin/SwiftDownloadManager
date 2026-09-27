@@ -8,8 +8,11 @@ enum AppActivation {
         app.activate(ignoringOtherApps: true)
         if app.isHidden { app.unhide(nil) }
 
-        guard let window = app.windows.first(where: { $0.canBecomeKey && !$0.isSheet }) else { return }
-        if window.isMiniaturized { window.deminiaturize(nil) }
-        window.makeKeyAndOrderFront(nil)
+        let target = BackgroundAppManager.shared.cachedMainWindow
+            ?? app.windows.first(where: { !$0.isSheet && !($0 is NSPanel) })
+        if let window = target {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        }
     }
 }

@@ -62,3 +62,33 @@ final class DownloadItem {
         self.saveDirectoryPath = saveDirectoryPath
     }
 }
+
+enum DownloadSortOrder: String, CaseIterable, Identifiable, Codable {
+    case dateAdded, name, size, speed, progress, eta, status
+    var id: String { rawValue }
+    var prefersAscending: Bool { self == .name }
+}
+
+struct ColumnWidths {
+    var date: CGFloat = 108
+    var progress: CGFloat = 160
+    var speed: CGFloat = 90
+    var status: CGFloat = 36
+    var size: CGFloat = 80
+    var eta: CGFloat = 75
+
+    static let `default` = ColumnWidths()
+    static let minWidth: CGFloat = 36
+}
+
+struct DownloadConfirmationOptions: Sendable {
+    var fileName: String
+    var urlString: String
+    var preferredSegmentsCount: Int = 4
+    var saveDirectory: URL?
+    var startImmediately: Bool = true
+    var priority: DownloadPriority = .normal
+    var speedLimitBytesPerSecond: Int64?
+    var scheduledStartAt: Date?
+}
+

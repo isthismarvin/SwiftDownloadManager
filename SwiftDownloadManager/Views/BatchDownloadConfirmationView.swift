@@ -74,6 +74,7 @@ struct BatchDownloadConfirmationView: View {
 
             HStack {
                 Button(L10n.cancel, role: .cancel, action: onCancel)
+                    .keyboardShortcut(.cancelAction)
                 Spacer()
                 Button(L10n.t(de: "In Warteschlange", en: "Queue")) {
                     onConfirm(Array(selectedIDs), false)
@@ -83,6 +84,7 @@ struct BatchDownloadConfirmationView: View {
                     onConfirm(Array(selectedIDs), true)
                 }
                 .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
                 .disabled(selectedIDs.isEmpty)
             }
         }

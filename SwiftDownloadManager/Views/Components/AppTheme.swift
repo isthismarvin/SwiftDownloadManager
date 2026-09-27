@@ -180,7 +180,7 @@ struct ResizableDivider: View {
     @Binding var width: CGFloat
     var minWidth: CGFloat = ColumnWidths.minWidth
 
-    @State private var dragStartWidth: CGFloat? = nil
+    @State private var dragStartWidth: CGFloat?
 
     var body: some View {
         ZStack {

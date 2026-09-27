@@ -23,10 +23,12 @@ swiftc \
   SwiftDownloadManager/Core/Models/DownloadPriority.swift \
   SwiftDownloadManager/Utilities/SiteCredentialStore.swift \
   SwiftDownloadManager/Utilities/ArchiveExtractionService.swift \
+  SwiftDownloadManager/Views/DownloadTable/TableColumnLayout.swift \
   tests/TestStubs.swift \
   tests/DomainRuleStoreTests.swift \
   tests/SiteCredentialStoreAndArchiveTests.swift \
   tests/ChaosTests.swift \
+  tests/UITests.swift \
   tests/main.swift \
   -o tests/unittests
 

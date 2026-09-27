@@ -40,14 +40,19 @@ struct DownloadConfirmationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
-            duplicateBanner
-            contentDuplicateBanner
-            conflictChoiceBanner
-            compactFields
-            metadataRow
-            statusMessages
-            destinationRow
-            advancedSection
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    duplicateBanner
+                    contentDuplicateBanner
+                    conflictChoiceBanner
+                    compactFields
+                    metadataRow
+                    statusMessages
+                    destinationRow
+                    advancedSection
+                }
+            }
+            .scrollContentBackground(.hidden)
             actionButtons
         }
         .padding(AppTheme.dialogPadding)

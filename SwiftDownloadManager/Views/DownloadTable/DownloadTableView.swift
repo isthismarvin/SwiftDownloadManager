@@ -6,6 +6,7 @@ struct DownloadTableView: View {
     let downloads: [DownloadItem]
     let folders: [DownloadFolder]
     let hasAnyDownloads: Bool
+    var bottomInset: CGFloat = 0
 
     @State private var columns = ColumnWidths.default
     @State private var dropTargetColumn: DownloadTableColumn?
@@ -67,6 +68,9 @@ struct DownloadTableView: View {
                     }
                     .scrollContentBackground(.hidden)
                     .scrollEdgeEffectStyle(.soft, for: .vertical)
+                    .safeAreaInset(edge: .bottom) {
+                        Color.clear.frame(height: bottomInset)
+                    }
                 }
             }
         }
