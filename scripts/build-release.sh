@@ -65,14 +65,29 @@ echo "→ Packaging Chrome extension…"
   zip -r -X "$EXT_ZIP" . -x "*.DS_Store" -x "__MACOSX/*"
 )
 
+echo "→ Generating SHA-256 checksums…"
+(
+  cd "$DIST"
+  shasum -a 256 \
+    "SwiftDownloadManager-macOS-v${APP_VERSION}.dmg" \
+    "SwiftDownloadManager-macOS-v${APP_VERSION}.zip" \
+    "SwiftDownloadManager-ChromeExtension-v${APP_VERSION}.zip" > SHA256SUMS.txt
+)
+
+CHECKSUMS_FILE="$DIST/SHA256SUMS.txt"
+
 echo ""
 echo "Release assets ready (v${APP_VERSION}):"
 echo "  $APP_DMG"
 echo "  $APP_ZIP"
 echo "  $EXT_ZIP"
+echo "  $CHECKSUMS_FILE"
+echo ""
+echo "SHA-256 Checksums:"
+cat "$CHECKSUMS_FILE"
 echo ""
 echo "Create GitHub release:"
 echo "  gh release create v${APP_VERSION} \\"
 echo "    --title \"v${APP_VERSION}\" \\"
 echo "    --notes \"Release notes…\" \\"
-echo "    \"$APP_DMG\" \"$APP_ZIP\" \"$EXT_ZIP\""
+echo "    \"$APP_DMG\" \"$APP_ZIP\" \"$EXT_ZIP\" \"$CHECKSUMS_FILE\""

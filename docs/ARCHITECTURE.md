@@ -15,11 +15,13 @@ flowchart TD
         ENG[DownloadEngine]
         PROBE[DownloadProbeService]
         MET[DownloadMetricsTracker]
+        ARCH[ArchiveExtractionService]
     end
-    subgraph data [Data]
+    subgraph data [Data & Security]
         SD[(SwiftData)]
         AS[AppSettings UserDefaults]
         DR[DomainRuleStore]
+        SCS[SiteCredentialStore]
     end
     Views --> VMs
     VMs --> DM
@@ -28,6 +30,9 @@ flowchart TD
     DM --> SD
     DM --> MET
     DM --> PROBE
+    DM --> ARCH
+    ENG --> SCS
+    PROBE --> SCS
     AS --> DM
     EXT[Chrome Extension] --> LHS[LocalHTTPServer] --> DM
 ```
@@ -72,9 +77,12 @@ All user preferences live in **`AppSettings`** (UserDefaults), including:
 
 - Sort order, concurrent downloads, global speed limit
 - Dialog behavior, conflict policy, notifications
+- Auto-archive extraction and archive trashing
 - Language, inspector collapse state
 
-`resetAllSettings()` clears AppSettings keys plus `DomainRuleStore` and `RecentDestinationsStore`.
+For a full specification of all 50+ options across all panels, see [SETTINGS_CATALOG.md](SETTINGS_CATALOG.md).
+
+`resetAllSettings()` clears AppSettings keys plus `DomainRuleStore`, `SiteCredentialStore`, and `RecentDestinationsStore`.
 
 ## Sandbox
 

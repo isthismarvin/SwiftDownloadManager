@@ -63,7 +63,10 @@ fastlane/test_output
 
 # Editor / IDE / AI Tools
 .cursor/
-.vscode/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/settings.json.example
 .idea/
 .fleet/
 .gemini/

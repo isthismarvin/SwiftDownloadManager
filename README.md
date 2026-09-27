@@ -11,6 +11,7 @@
 <p align="center">
   <a href="https://github.com/isthismarvin/SwiftDownloadManager/releases/latest"><img src="https://img.shields.io/github/v/release/isthismarvin/SwiftDownloadManager?label=Release&color=007AFF" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Source%20Available-blue.svg" alt="Source Available"></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/badge/Security-Policy-brightgreen.svg" alt="Security Policy"></a>
   <a href="https://github.com/isthismarvin/SwiftDownloadManager/actions/workflows/ci.yml"><img src="https://github.com/isthismarvin/SwiftDownloadManager/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2026%2B-lightgrey" alt="macOS 26+">
   <img src="https://img.shields.io/badge/Swift-5-orange" alt="Swift 5">
@@ -98,6 +99,19 @@ App and Chrome extension share the same version (**v2.3.0**).
 | macOS app (recommended) | [SwiftDownloadManager-macOS-v2.3.0.dmg](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.3.0.dmg) |
 | macOS app (zip) | [SwiftDownloadManager-macOS-v2.3.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.3.0.zip) |
 | Chrome extension | [SwiftDownloadManager-ChromeExtension-v2.3.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.3.0.zip) |
+| Checksums | [SHA256SUMS.txt](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SHA256SUMS.txt) |
+
+### Verifying Download Integrity (SHA-256)
+
+Every release includes an official `SHA256SUMS.txt` file containing cryptographic SHA-256 hashes of all distributed packages. You can verify your download integrity in Terminal:
+
+```bash
+# Verify all downloaded files in your current directory:
+shasum -a 256 -c SHA256SUMS.txt
+
+# Or compute the hash of a specific file:
+shasum -a 256 SwiftDownloadManager-macOS-v2.3.0.dmg
+```
 
 ### macOS app
 
@@ -253,14 +267,17 @@ SwiftDownloadManager/
 
 | Document | Description |
 |----------|-------------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layers, data flow |
-| [docs/CHROME_EXTENSION.md](docs/CHROME_EXTENSION.md) | Extension protocol & dev setup |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | PR guidelines |
-| [tests/README.md](tests/README.md) | Test details |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architectural layers, data flow, and subsystems |
+| [docs/SETTINGS_CATALOG.md](docs/SETTINGS_CATALOG.md) | Complete catalog of user settings, keys, and defaults |
+| [docs/CHROME_EXTENSION.md](docs/CHROME_EXTENSION.md) | Browser companion protocol and development setup |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Engineering Do's and Don'ts, code style, and PR checklist |
+| [SECURITY.md](SECURITY.md) | Vulnerability disclosure policy and security architecture |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant v2.1 standards |
+| [tests/README.md](tests/README.md) | Unit test suite and integration smoke testing |
 
 ## Contributing
 
-Contributions welcome — read [CONTRIBUTING.md](CONTRIBUTING.md) and [CLA.md](CLA.md) first.
+Contributions welcome — please review [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [CLA.md](CLA.md) before submitting pull requests.
 
 1. Fork → feature branch → `./scripts/run-tests.sh` + `swiftlint` → PR against `main`
 

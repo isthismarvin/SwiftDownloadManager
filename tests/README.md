@@ -18,6 +18,8 @@ Swift Download Manager uses **standalone test runners** (no XCTest target yet). 
 | `SpeedLimiter` | Throughput limiting |
 | `DomainRuleStore` | Host rules, wildcards, migration |
 | `DestinationConflictResolver` | Rename preview, conflict messages |
+| `SiteCredentialStore` | Host & wildcard credential matching, Basic/Bearer auth |
+| `ArchiveExtractionService` | Archive format detection and extraction pipeline |
 
 ## Manual compilation
 
@@ -32,8 +34,11 @@ swiftc \
   SwiftDownloadManager/Utilities/SegmentPlanner.swift \
   SwiftDownloadManager/Utilities/DomainRuleStore.swift \
   SwiftDownloadManager/Utilities/DestinationConflictResolver.swift \
+  SwiftDownloadManager/Utilities/SiteCredentialStore.swift \
+  SwiftDownloadManager/Utilities/ArchiveExtractionService.swift \
   tests/TestStubs.swift \
   tests/DomainRuleStoreTests.swift \
+  tests/SiteCredentialStoreAndArchiveTests.swift \
   tests/main.swift \
   -o tests/unittests && ./tests/unittests
 ```
