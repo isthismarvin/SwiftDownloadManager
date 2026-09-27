@@ -92,13 +92,13 @@ Swift Download Manager replaces the browser download bar with a proper queue on 
 
 **[→ Go to Releases](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest)**
 
-App and Chrome extension share the same version (**v2.3.0**).
+App and Chrome extension share the same version (**v2.4.0**).
 
 | Asset | Download |
 |-------|----------|
-| macOS app (recommended) | [SwiftDownloadManager-macOS-v2.3.0.dmg](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.3.0.dmg) |
-| macOS app (zip) | [SwiftDownloadManager-macOS-v2.3.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.3.0.zip) |
-| Chrome extension | [SwiftDownloadManager-ChromeExtension-v2.3.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.3.0.zip) |
+| macOS app (recommended) | [SwiftDownloadManager-macOS-v2.4.0.dmg](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.4.0.dmg) |
+| macOS app (zip) | [SwiftDownloadManager-macOS-v2.4.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-macOS-v2.4.0.zip) |
+| Chrome extension | [SwiftDownloadManager-ChromeExtension-v2.4.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.4.0.zip) |
 | Checksums | [SHA256SUMS.txt](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SHA256SUMS.txt) |
 
 ### Verifying Download Integrity (SHA-256)
@@ -110,7 +110,7 @@ Every release includes an official `SHA256SUMS.txt` file containing cryptographi
 shasum -a 256 -c SHA256SUMS.txt
 
 # Or compute the hash of a specific file:
-shasum -a 256 SwiftDownloadManager-macOS-v2.3.0.dmg
+shasum -a 256 SwiftDownloadManager-macOS-v2.4.0.dmg
 ```
 
 ### macOS app
@@ -130,7 +130,7 @@ Requires **macOS 26.0** (Tahoe) or later.
 
 The companion extension talks to the app over localhost. **The app must be running.**
 
-1. Download and unzip [SwiftDownloadManager-ChromeExtension-v2.3.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.3.0.zip).
+1. Download and unzip [SwiftDownloadManager-ChromeExtension-v2.4.0.zip](https://github.com/isthismarvin/SwiftDownloadManager/releases/latest/download/SwiftDownloadManager-ChromeExtension-v2.4.0.zip).
 2. Launch Swift Download Manager.
 3. In Chrome: `chrome://extensions` → **Developer mode** → **Load unpacked** → select the unzipped folder.
 4. Pin the extension. A green **✓** badge means the app is connected.
